@@ -1,0 +1,172 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* CareConnect Healthcare Design System */
+    --background: 210 20% 98%;
+    --foreground: 215 25% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+
+    /* Primary: Deep Teal - Trust, Healthcare, Calm */
+    --primary: 168 80% 30%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: Soft Slate Blue */
+    --secondary: 210 30% 95%;
+    --secondary-foreground: 215 25% 25%;
+
+    /* Muted: Light gray for backgrounds */
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 15% 50%;
+
+    /* Accent: Coral for CTAs */
+    --accent: 12 80% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Healthcare-specific colors */
+    --success: 158 64% 42%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 20% 90%;
+    --input: 214 20% 90%;
+    --ring: 168 80% 30%;
+
+    --radius: 0.75rem;
+
+    /* Gradient definitions */
+    --gradient-primary: linear-gradient(135deg, hsl(168 80% 30%) 0%, hsl(180 70% 35%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(168 80% 30%) 0%, hsl(195 75% 40%) 50%, hsl(210 60% 45%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 20% 98%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(12 80% 60%) 0%, hsl(25 85% 55%) 100%);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(215 25% 15% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(215 25% 15% / 0.08), 0 2px 4px -2px hsl(215 25% 15% / 0.04);
+    --shadow-lg: 0 10px 15px -3px hsl(215 25% 15% / 0.08), 0 4px 6px -4px hsl(215 25% 15% / 0.04);
+    --shadow-xl: 0 20px 25px -5px hsl(215 25% 15% / 0.1), 0 8px 10px -6px hsl(215 25% 15% / 0.08);
+    --shadow-glow: 0 0 40px -10px hsl(168 80% 30% / 0.4);
+
+    /* Sidebar */
+    --sidebar-background: 210 25% 12%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 168 80% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 25% 18%;
+    --sidebar-accent-foreground: 210 20% 90%;
+    --sidebar-border: 210 25% 20%;
+    --sidebar-ring: 168 80% 45%;
+  }
+
+  .dark {
+    --background: 215 25% 10%;
+    --foreground: 210 20% 95%;
+
+    --card: 215 25% 13%;
+    --card-foreground: 210 20% 95%;
+
+    --popover: 215 25% 13%;
+    --popover-foreground: 210 20% 95%;
+
+    --primary: 168 70% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 215 25% 18%;
+    --secondary-foreground: 210 20% 90%;
+
+    --muted: 215 25% 18%;
+    --muted-foreground: 215 15% 60%;
+
+    --accent: 12 75% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 25% 22%;
+    --input: 215 25% 22%;
+    --ring: 168 70% 45%;
+
+    --sidebar-background: 215 30% 8%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 168 70% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 25% 15%;
+    --sidebar-accent-foreground: 210 20% 90%;
+    --sidebar-border: 215 25% 18%;
+    --sidebar-ring: 168 70% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 shadow-lg;
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-primary);
+  }
+
+  .gradient-hero {
+    background-image: var(--gradient-hero);
+  }
+
+  .gradient-accent {
+    background-image: var(--gradient-accent);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
