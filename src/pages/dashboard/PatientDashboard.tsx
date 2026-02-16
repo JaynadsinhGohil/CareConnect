@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Calendar, FileText, CreditCard, User, Download, Clock } from "lucide-react";
 import SimpleDashboardLayout from "@/components/dashboard/SimpleDashboardLayout";
 import StatCard from "@/components/dashboard/StatCard";
@@ -5,34 +7,70 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-
-const appointments = [
-  { doctor: "Dr. John Smith", specialty: "General Physician", date: "Feb 5, 2024", time: "10:00 AM", status: "upcoming" },
-  { doctor: "Dr. Sarah Johnson", specialty: "Dermatologist", date: "Jan 28, 2024", time: "2:30 PM", status: "completed" },
-];
-
-const recentReports = [
-  { name: "Blood Test Report", date: "Jan 25, 2024", type: "Laboratory" },
-  { name: "X-Ray Chest", date: "Jan 20, 2024", type: "Radiology" },
-  { name: "ECG Report", date: "Jan 15, 2024", type: "Cardiology" },
-];
-
-const prescriptions = [
-  { medicine: "Amoxicillin 500mg", dosage: "1 tablet, 3 times daily", duration: "7 days", doctor: "Dr. Smith" },
-  { medicine: "Paracetamol 650mg", dosage: "1 tablet, as needed", duration: "5 days", doctor: "Dr. Smith" },
-];
+import { patientApi } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const PatientDashboard = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [records, setRecords] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setIsLoading(true);
+        const [profileRes, appointmentsRes, prescriptionsRes, recordsRes] = await Promise.all([
+          patientApi.getProfile(),
+          patientApi.getAppointments(),
+          patientApi.getPrescriptions(),
+          patientApi.getMedicalRecords(),
+        ]);
+
+        if (profileRes.data) setProfile(profileRes.data);
+        if (appointmentsRes.data) setAppointments(appointmentsRes.data);
+        if (prescriptionsRes.data) setPrescriptions(prescriptionsRes.data);
+        if (recordsRes.data) setRecords(recordsRes.data);
+
+        if (profileRes.error || appointmentsRes.error) {
+          console.error('Failed to fetch data');
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  const upcomingAppointments = appointments.filter(a => a.status === 'scheduled');
+  const completedAppointments = appointments.filter(a => a.status === 'completed');
+  const nextAppointment = upcomingAppointments[0];
+
+  const initials = user ? `${user.firstName[0]}${user.lastName[0]}` : 'P';
+
   return (
-    <SimpleDashboardLayout role="patient" userName="Sarah Johnson" userId="P-2847">
+    <SimpleDashboardLayout 
+      role="patient" 
+      userName={user?.firstName || "Patient"} 
+      userId={user?.id?.substring(0, 8) || "P-00"}
+      onProfileClick={() => navigate('/dashboard/profile-settings')}
+      onHelpClick={() => navigate('/dashboard/help-support')}
+    >
       <div className="space-y-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Welcome, Sarah</h1>
+            <h1 className="text-2xl font-bold text-foreground">Welcome, {user?.firstName}</h1>
             <p className="text-muted-foreground">Here's your health overview and upcoming appointments.</p>
           </div>
-          <Button variant="hero">
+          <Button variant="hero" onClick={() => navigate('/dashboard/book-appointment')}>
             <Calendar className="w-4 h-4 mr-2" />
             Book Appointment
           </Button>
@@ -43,21 +81,17 @@ const PatientDashboard = () => {
           <CardContent className="py-6">
             <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
               <Avatar className="h-20 w-20 border-4 border-primary/20">
-                <AvatarFallback className="bg-primary text-primary-foreground text-2xl">SJ</AvatarFallback>
+                <AvatarFallback className="bg-primary text-primary-foreground text-2xl">{initials}</AvatarFallback>
               </Avatar>
               <div className="flex-1 space-y-1">
-                <h2 className="text-xl font-semibold text-foreground">Sarah Johnson</h2>
-                <p className="text-muted-foreground">Patient ID: P-2847</p>
+                <h2 className="text-xl font-semibold text-foreground">{user?.firstName} {user?.lastName}</h2>
+                <p className="text-muted-foreground">Patient ID: {user?.id?.substring(0, 12)}</p>
                 <div className="flex flex-wrap gap-4 pt-2">
-                  <span className="text-sm text-muted-foreground">Age: 32 years</span>
-                  <span className="text-sm text-muted-foreground">Blood Group: A+</span>
-                  <span className="text-sm text-muted-foreground">Phone: +1 (555) 123-4567</span>
+                  {profile?.gender && <span className="text-sm text-muted-foreground">Gender: {profile.gender}</span>}
+                  {profile?.blood_type && <span className="text-sm text-muted-foreground">Blood Group: {profile.blood_type}</span>}
+                  {user?.phone && <span className="text-sm text-muted-foreground">Phone: {user.phone}</span>}
                 </div>
               </div>
-              <Button variant="outline">
-                <User className="w-4 h-4 mr-2" />
-                Edit Profile
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -66,30 +100,30 @@ const PatientDashboard = () => {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Next Appointment"
-            value="Feb 5"
+            value={nextAppointment ? new Date(nextAppointment.appointment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "No"}
             icon={<Calendar className="w-6 h-6" />}
-            description="10:00 AM - Dr. Smith"
+            description={nextAppointment ? `Dr. ${nextAppointment.doctor_first_name}` : "No upcoming"}
             variant="primary"
           />
           <StatCard
             title="Total Visits"
-            value="12"
+            value={completedAppointments.length.toString()}
             icon={<Clock className="w-6 h-6" />}
-            description="Since Jan 2023"
+            description="Completed visits"
             variant="success"
           />
           <StatCard
-            title="Medical Reports"
-            value="8"
+            title="Medical Records"
+            value={records.length.toString()}
             icon={<FileText className="w-6 h-6" />}
-            description="3 new this month"
+            description="Your reports"
             variant="warning"
           />
           <StatCard
-            title="Pending Bills"
-            value="₹2,500"
+            title="Active Meds"
+            value={prescriptions.length.toString()}
             icon={<CreditCard className="w-6 h-6" />}
-            description="Due Feb 15"
+            description="Current medications"
             variant="accent"
           />
         </div>
@@ -108,74 +142,83 @@ const PatientDashboard = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {appointments.map((apt, index) => (
-                <div
-                  key={index}
-                  className={`p-4 rounded-xl border ${
-                    apt.status === "upcoming" ? "bg-primary/5 border-primary/20" : "bg-card"
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                          {apt.doctor.split(" ").slice(1).map(n => n[0]).join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium text-foreground">{apt.doctor}</p>
-                        <p className="text-sm text-muted-foreground">{apt.specialty}</p>
+              {isLoading ? (
+                <p className="text-muted-foreground">Loading...</p>
+              ) : appointments.length > 0 ? (
+                appointments.slice(0, 3).map((apt) => (
+                  <div
+                    key={apt.id}
+                    className={`p-4 rounded-xl border ${
+                      apt.status === "scheduled" ? "bg-primary/5 border-primary/20" : "bg-card"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                            {apt.doctor_first_name?.[0]}{apt.doctor_last_name?.[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium text-foreground">Dr. {apt.doctor_first_name} {apt.doctor_last_name}</p>
+                          <p className="text-sm text-muted-foreground">{apt.specialization}</p>
+                        </div>
                       </div>
+                      <Badge className={apt.status === "scheduled" ? "bg-primary/10 text-primary" : "bg-success/10 text-success"}>
+                        {apt.status}
+                      </Badge>
                     </div>
-                    <Badge className={apt.status === "upcoming" ? "bg-primary/10 text-primary" : "bg-success/10 text-success"}>
-                      {apt.status}
-                    </Badge>
+                    <div className="mt-3 flex items-center gap-1 text-sm text-muted-foreground">
+                      <Calendar className="w-4 h-4" />
+                      {new Date(apt.appointment_date).toLocaleDateString()}
+                    </div>
                   </div>
-                  <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground">
-                    <span>{apt.date}</span>
-                    <span>•</span>
-                    <span>{apt.time}</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-muted-foreground">No appointments yet</p>
+              )}
             </CardContent>
           </Card>
 
-          {/* Medical Reports */}
+          {/* Medical Records */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Recent Reports</CardTitle>
+                  <CardTitle>Medical Records</CardTitle>
                   <CardDescription>Your medical documents</CardDescription>
                 </div>
                 <Button variant="outline" size="sm">View All</Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {recentReports.map((report, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-4 rounded-xl border hover:bg-secondary/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">{report.name}</p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>{report.type}</span>
-                        <span>•</span>
-                        <span>{report.date}</span>
+              {isLoading ? (
+                <p className="text-muted-foreground">Loading...</p>
+              ) : records.length > 0 ? (
+                records.slice(0, 3).map((record) => (
+                  <div
+                    key={record.id}
+                    className="flex items-center justify-between p-4 rounded-xl border hover:bg-secondary/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <FileText className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground">{record.diagnosis}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(record.created_at).toLocaleDateString()}
+                        </p>
                       </div>
                     </div>
+                    <Button variant="ghost" size="icon">
+                      <Download className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="icon">
-                    <Download className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-muted-foreground">No medical records yet</p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -187,25 +230,31 @@ const PatientDashboard = () => {
             <CardDescription>Active medications from your doctors</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-2 gap-4">
-              {prescriptions.map((rx, index) => (
-                <div
-                  key={index}
-                  className="p-4 rounded-xl border bg-card"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">{rx.medicine}</p>
-                      <p className="text-sm text-muted-foreground mt-1">{rx.dosage}</p>
-                      <div className="flex items-center gap-3 mt-3 text-sm">
-                        <Badge variant="secondary">{rx.duration}</Badge>
-                        <span className="text-muted-foreground">by {rx.doctor}</span>
+            {isLoading ? (
+              <p className="text-muted-foreground">Loading...</p>
+            ) : prescriptions.length > 0 ? (
+              <div className="grid md:grid-cols-2 gap-4">
+                {prescriptions.map((rx) => (
+                  <div
+                    key={rx.id}
+                    className="p-4 rounded-xl border bg-card"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-medium text-foreground">{rx.medication_name}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{rx.dosage} - {rx.frequency}</p>
+                        <div className="flex items-center gap-3 mt-3 text-sm">
+                          <Badge variant="secondary">{rx.duration}</Badge>
+                          <span className="text-muted-foreground">by Dr. {rx.doctor_first_name}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">No active prescriptions</p>
+            )}
           </CardContent>
         </Card>
       </div>

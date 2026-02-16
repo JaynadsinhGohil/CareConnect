@@ -3,7 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Heart, Mail, Lock, ArrowRight, Shield, Stethoscope, UserCog, User, Hash } from "lucide-react";
+import { Heart, Mail, Lock, ArrowRight, Shield, Stethoscope, UserCog, User, Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 type UserRole = "admin" | "doctor" | "receptionist" | "patient";
 
@@ -16,121 +18,54 @@ const roles = [
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [selectedRole, setSelectedRole] = useState<UserRole>("patient");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [userId, setUserId] = useState("");
-  const [patientId, setPatientId] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Navigate to role-specific dashboard
-    navigate(`/dashboard/${selectedRole}`);
+  const handleRoleChange = (role: UserRole) => {
+    setSelectedRole(role);
+    // Clear fields when switching roles
+    setEmail("");
+    setPassword("");
   };
 
-  const renderLoginFields = () => {
-    switch (selectedRole) {
-      case "admin":
-        return (
-          <>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter admin email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-11 h-12"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <a href="#" className="text-sm text-primary hover:underline">
-                  Forgot password?
-                </a>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-11 h-12"
-                />
-              </div>
-            </div>
-          </>
-        );
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      toast.error("Please enter email and password");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await login(email, password);
       
-      case "doctor":
-      case "receptionist":
-        return (
-          <>
-            <div className="space-y-2">
-              <Label htmlFor="userId">
-                {selectedRole === "doctor" ? "Doctor ID" : "Staff ID"}
-              </Label>
-              <div className="relative">
-                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  id="userId"
-                  type="text"
-                  placeholder={selectedRole === "doctor" ? "Enter Doctor ID (e.g., DR-001)" : "Enter Staff ID (e.g., RCP-001)"}
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                  className="pl-11 h-12"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <a href="#" className="text-sm text-primary hover:underline">
-                  Forgot password?
-                </a>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-11 h-12"
-                />
-              </div>
-            </div>
-          </>
-        );
+      // Role-based validation: check if logged-in user's role matches selected role
+      if (result.user.role !== selectedRole) {
+        toast.error(`Invalid credentials for ${selectedRole}. Please check your email and password.`);
+        setIsLoading(false);
+        return;
+      }
       
-      case "patient":
-        return (
-          <div className="space-y-2">
-            <Label htmlFor="patientId">Patient ID</Label>
-            <div className="relative">
-              <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input
-                id="patientId"
-                type="text"
-                placeholder="Enter your Patient ID (e.g., P-2847)"
-                value={patientId}
-                onChange={(e) => setPatientId(e.target.value)}
-                className="pl-11 h-12"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Your Patient ID was provided during registration. Contact reception if you need assistance.
-            </p>
-          </div>
-        );
+      if (result.user.role === "admin") {
+        navigate("/dashboard/admin");
+      } else if (result.user.role === "doctor") {
+        navigate("/dashboard/doctor");
+      } else if (result.user.role === "receptionist") {
+        navigate("/dashboard/receptionist");
+      } else if (result.user.role === "patient") {
+        navigate("/dashboard/patient");
+      }
+      
+      toast.success("Login successful!");
+    } catch (error: any) {
+      toast.error(error.message || "Login failed. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -139,11 +74,11 @@ const Login = () => {
       case "admin":
         return "Use your admin email and password";
       case "doctor":
-        return "Use your Doctor ID and password";
+        return "Use your doctor email and password";
       case "receptionist":
-        return "Use your Staff ID and password";
+        return "Use your staff email and password";
       case "patient":
-        return "Enter your Patient ID to access your records";
+        return "Use your email and password";
     }
   };
 
@@ -186,6 +121,8 @@ const Login = () => {
               <span>End-to-End Encryption</span>
             </div>
           </div>
+
+          {/* Demo Credentials */}
         </div>
 
         <div className="relative z-10 text-primary-foreground/60 text-sm">
@@ -222,7 +159,8 @@ const Login = () => {
               return (
                 <button
                   key={role.id}
-                  onClick={() => setSelectedRole(role.id)}
+                  type="button"
+                  onClick={() => handleRoleChange(role.id)}
                   className={`p-4 rounded-xl border-2 transition-all duration-200 text-left ${
                     selectedRole === role.id
                       ? "border-primary bg-primary/5 shadow-md"
@@ -230,7 +168,7 @@ const Login = () => {
                   }`}
                 >
                   <Icon className={`w-5 h-5 mb-2 ${selectedRole === role.id ? "text-primary" : "text-muted-foreground"}`} />
-                  <div className={`font-medium ${selectedRole === role.id ? "text-primary" : "text-foreground"}`}>
+                  <div className={`font-medium text-sm ${selectedRole === role.id ? "text-primary" : "text-foreground"}`}>
                     {role.label}
                   </div>
                   <div className="text-xs text-muted-foreground">{role.description}</div>
@@ -239,21 +177,77 @@ const Login = () => {
             })}
           </div>
 
-          {/* Login Form - Dynamic based on role */}
+          {/* Login Form */}
           <form onSubmit={handleLogin} className="space-y-6">
-            {renderLoginFields()}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-11 h-12"
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
 
-            <Button variant="hero" size="lg" className="w-full group">
-              Sign In as {roles.find(r => r.id === selectedRole)?.label}
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <a href="#" className="text-sm text-primary hover:underline">
+                  Forgot password?
+                </a>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-11 pr-11 h-12"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={isLoading}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <Button 
+              variant="hero" 
+              size="lg" 
+              className="w-full group" 
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>Loading...</>
+              ) : (
+                <>
+                  Sign In
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform ml-2" />
+                </>
+              )}
             </Button>
           </form>
 
           <div className="text-center text-sm text-muted-foreground">
-            <span>Need access? </span>
-            <a href="#" className="text-primary hover:underline font-medium">
-              Contact administrator
-            </a>
+            <span>Don't have an account? </span>
+            <Link to="/" className="text-primary font-medium hover:underline">Contact admin</Link>
           </div>
 
           <Link to="/" className="block text-center text-sm text-muted-foreground hover:text-foreground transition-colors">

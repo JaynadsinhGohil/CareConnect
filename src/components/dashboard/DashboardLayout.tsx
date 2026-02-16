@@ -11,6 +11,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface NavItem {
   label: string;
@@ -23,18 +25,32 @@ interface DashboardLayoutProps {
   navItems: NavItem[];
   role: string;
   userName: string;
+  onProfileClick?: () => void;
+  onHelpClick?: () => void;
 }
 
-const DashboardLayout = ({ children, navItems, role, userName }: DashboardLayoutProps) => {
+const DashboardLayout = ({ children, navItems, role, userName, onProfileClick, onHelpClick }: DashboardLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = () => {
-    navigate("/login");
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      toast.success("Logged out successfully");
+      navigate("/login");
+    } catch (error) {
+      toast.error("Logout failed");
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
-  const initials = userName.split(" ").map(n => n[0]).join("").toUpperCase();
+  const displayName = user ? `${user.firstName} ${user.lastName}` : userName;
+  const initials = displayName.split(" ").map(n => n[0]).join("").toUpperCase();
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -96,8 +112,8 @@ const DashboardLayout = ({ children, navItems, role, userName }: DashboardLayout
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-sidebar-foreground truncate">{userName}</p>
-                <p className="text-xs text-sidebar-foreground/60 capitalize">{role}</p>
+                <p className="text-sm font-medium text-sidebar-foreground truncate">{displayName}</p>
+                <p className="text-xs text-sidebar-foreground/60 capitalize">{user?.role || role}</p>
               </div>
             </div>
           </div>
@@ -157,16 +173,20 @@ const DashboardLayout = ({ children, navItems, role, userName }: DashboardLayout
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-2 py-1.5">
-                  <p className="text-sm font-medium">{userName}</p>
-                  <p className="text-xs text-muted-foreground capitalize">{role}</p>
+                  <p className="text-sm font-medium">{displayName}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{user?.email}</p>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Profile Settings</DropdownMenuItem>
-                <DropdownMenuItem>Help & Support</DropdownMenuItem>
+                <DropdownMenuItem onClick={onProfileClick}>Profile Settings</DropdownMenuItem>
+                <DropdownMenuItem onClick={onHelpClick}>Help & Support</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+                <DropdownMenuItem 
+                  onClick={handleLogout} 
+                  className="text-destructive cursor-pointer"
+                  disabled={isLoggingOut}
+                >
                   <LogOut className="w-4 h-4 mr-2" />
-                  Sign Out
+                  {isLoggingOut ? "Signing out..." : "Sign Out"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

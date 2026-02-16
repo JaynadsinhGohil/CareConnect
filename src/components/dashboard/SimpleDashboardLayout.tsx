@@ -16,12 +16,24 @@ interface SimpleDashboardLayoutProps {
   role: string;
   userName: string;
   userId?: string;
+  onProfileClick?: () => void;
+  onHelpClick?: () => void;
 }
 
-const SimpleDashboardLayout = ({ children, role, userName, userId }: SimpleDashboardLayoutProps) => {
+const SimpleDashboardLayout = ({ 
+  children, 
+  role, 
+  userName, 
+  userId,
+  onProfileClick,
+  onHelpClick,
+}: SimpleDashboardLayoutProps) => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
     navigate("/login");
   };
 
@@ -74,8 +86,8 @@ const SimpleDashboardLayout = ({ children, role, userName, userId }: SimpleDashb
                 )}
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Profile Settings</DropdownMenuItem>
-              <DropdownMenuItem>Help & Support</DropdownMenuItem>
+              <DropdownMenuItem onClick={onProfileClick}>Profile Settings</DropdownMenuItem>
+              <DropdownMenuItem onClick={onHelpClick}>Help & Support</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="text-destructive">
                 <LogOut className="w-4 h-4 mr-2" />
