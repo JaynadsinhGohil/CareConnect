@@ -6,7 +6,11 @@
   },
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/:path*",
+      "destination": "https://care-connect-bc5i.vercel.app/api/:path*"
+    },
+    {
+      "source": "/:path((?!.*\\.).*)",
       "destination": "/index.html"
     }
   ]
