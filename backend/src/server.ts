@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors({
   origin: [
-    'https://care-connect-xi-one.vercel.app',
+    'https://care-connect-9l9v.vercel.app',
     'http://localhost:3000',
     'http://localhost:5173'
   ],
