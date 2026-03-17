@@ -98,6 +98,32 @@ export const doctorModel = {
     `);
     return result.rows;
   },
+
+  getPatientsByDoctor: async (doctorId: string) => {
+    const result = await pool.query(
+      `
+        SELECT DISTINCT
+          p.id,
+          p.date_of_birth,
+          p.gender,
+          p.blood_type,
+          p.medical_history,
+          p.allergies,
+          p.current_medications,
+          u.first_name,
+          u.last_name,
+          u.email,
+          u.phone
+        FROM appointments a
+        JOIN patients p ON a.patient_id = p.id
+        JOIN users u ON p.user_id = u.id
+        WHERE a.doctor_id = $1
+        ORDER BY u.first_name, u.last_name
+      `,
+      [doctorId]
+    );
+    return result.rows;
+  },
 };
 
 export const patientModel = {
@@ -227,11 +253,19 @@ export const appointmentModel = {
 };
 
 export const medicalRecordModel = {
-  create: async (patientId: string, doctorId: string, appointmentId: string, diagnosis: string, treatment_plan: string, medications: string) => {
+  create: async (
+    patientId: string,
+    doctorId: string,
+    appointmentId: string,
+    diagnosis: string,
+    treatment_plan: string,
+    medications: string,
+    attachments: any[]
+  ) => {
     const id = uuidv4();
     const result = await pool.query(
-      'INSERT INTO medical_records (id, patient_id, doctor_id, appointment_id, diagnosis, treatment_plan, medications) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [id, patientId, doctorId, appointmentId, diagnosis, treatment_plan, medications]
+      'INSERT INTO medical_records (id, patient_id, doctor_id, appointment_id, diagnosis, treatment_plan, medications, attachments) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [id, patientId, doctorId, appointmentId, diagnosis, treatment_plan, medications, JSON.stringify(attachments || [])]
     );
     return result.rows[0];
   },
@@ -260,6 +294,30 @@ export const medicalRecordModel = {
       ORDER BY mr.created_at DESC
     `);
     return result.rows;
+  },
+
+  updateByDoctor: async (
+    id: string,
+    doctorId: string,
+    diagnosis: string,
+    treatment_plan: string,
+    medications: string,
+    attachments: any[]
+  ) => {
+    const result = await pool.query(
+      `
+        UPDATE medical_records
+        SET diagnosis = $1,
+            treatment_plan = $2,
+            medications = $3,
+            attachments = $4,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $5 AND doctor_id = $6
+        RETURNING *
+      `,
+      [diagnosis, treatment_plan, medications, JSON.stringify(attachments || []), id, doctorId]
+    );
+    return result.rows[0];
   },
 };
 
@@ -298,6 +356,31 @@ export const prescriptionModel = {
       ORDER BY p.created_at DESC
     `);
     return result.rows;
+  },
+
+  updateByDoctor: async (
+    id: string,
+    doctorId: string,
+    medicationName: string,
+    dosage: string,
+    frequency: string,
+    duration: string,
+    instructions: string
+  ) => {
+    const result = await pool.query(
+      `
+        UPDATE prescriptions
+        SET medication_name = $1,
+            dosage = $2,
+            frequency = $3,
+            duration = $4,
+            instructions = $5
+        WHERE id = $6 AND doctor_id = $7
+        RETURNING *
+      `,
+      [medicationName, dosage, frequency, duration, instructions, id, doctorId]
+    );
+    return result.rows[0];
   },
 };
 

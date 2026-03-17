@@ -25,9 +25,15 @@ export declare const prescriptionController: {
     getAll: (req: AuthRequest, res: Response) => Promise<void>;
     create: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
 };
+export declare const adminController: {
+    getStaff: (req: AuthRequest, res: Response) => Promise<void>;
+    updateStaffStatus: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+    deleteStaff: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+};
 export declare const appointmentController: {
     getAll: (req: AuthRequest, res: Response) => Promise<void>;
     getById: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+    checkConflict: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
     createAppointment: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
     updateAppointmentStatus: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
 };

@@ -94,11 +94,6 @@ export const patientModel = {
                 values.push(data[key]);
             }
         });
-        // If no updates, return the existing record
-        if (updates.length === 0) {
-            const result = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
-            return result.rows[0];
-        }
         values.push(id);
         const query = `UPDATE patients SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`;
         const result = await pool.query(query, values);
@@ -114,6 +109,20 @@ export const appointmentModel = {
     findById: async (id) => {
         const result = await pool.query('SELECT * FROM appointments WHERE id = $1', [id]);
         return result.rows[0];
+    },
+    checkConflict: async (doctorId, appointmentDate) => {
+        // Check if doctor has appointment within 1 hour (30 minutes before and 30 minutes after)
+        const startTime = new Date(appointmentDate.getTime() - 30 * 60000);
+        const endTime = new Date(appointmentDate.getTime() + 30 * 60000);
+        const result = await pool.query(`
+      SELECT * FROM appointments 
+      WHERE doctor_id = $1 
+        AND appointment_date >= $2 
+        AND appointment_date <= $3
+        AND status != 'cancelled'
+      LIMIT 1
+    `, [doctorId, startTime, endTime]);
+        return result.rows.length > 0;
     },
     getByPatient: async (patientId) => {
         const result = await pool.query(`

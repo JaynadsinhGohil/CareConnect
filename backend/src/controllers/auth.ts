@@ -1,12 +1,13 @@
 import bcrypt from 'bcryptjs';
-import jwt, { SignOptions } from 'jsonwebtoken';
+import jwt, { SignOptions, Secret } from 'jsonwebtoken';
 import crypto from 'crypto';
 import { userModel, doctorModel, patientModel, refreshTokenModel } from '../models/index.js';
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key';
-const JWT_EXPIRE: string = (process.env.JWT_EXPIRE || '7d') as string;
+const JWT_SECRET: Secret = (process.env.JWT_SECRET || 'your_secret_key') as Secret;
+const JWT_EXPIRE: SignOptions['expiresIn'] = (process.env.JWT_EXPIRE || '7d') as SignOptions['expiresIn'];
+const REFRESH_EXPIRE: SignOptions['expiresIn'] = '30d';
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '10');
 
 interface RegisterUserData {
@@ -48,14 +49,14 @@ export const authController = {
       // Generate tokens
       const accessToken = jwt.sign(
         { userId: user.id, email: user.email, role: user.role },
-        JWT_SECRET as string,
+        JWT_SECRET,
         { expiresIn: JWT_EXPIRE }
       );
 
       const refreshToken = jwt.sign(
         { userId: user.id },
-        JWT_SECRET as string,
-        { expiresIn: '30d' }
+        JWT_SECRET,
+        { expiresIn: REFRESH_EXPIRE }
       );
 
       // Hash and store refresh token
@@ -108,14 +109,14 @@ export const authController = {
       // Generate tokens
       const accessToken = jwt.sign(
         { userId: user.id, email: user.email, role: user.role },
-        JWT_SECRET as string,
+        JWT_SECRET,
         { expiresIn: JWT_EXPIRE }
       );
 
       const refreshToken = jwt.sign(
         { userId: user.id },
-        JWT_SECRET as string,
-        { expiresIn: '30d' }
+        JWT_SECRET,
+        { expiresIn: REFRESH_EXPIRE }
       );
 
       // Hash and store refresh token
@@ -163,7 +164,7 @@ export const authController = {
       }
 
       // Verify refresh token
-      const decoded = jwt.verify(refreshToken, JWT_SECRET as string) as any;
+      const decoded = jwt.verify(refreshToken, JWT_SECRET) as any;
       const userId = decoded.userId;
 
       // Check if token is in database
@@ -183,7 +184,7 @@ export const authController = {
       // Generate new access token
       const accessToken = jwt.sign(
         { userId: user.id, email: user.email, role: user.role },
-        JWT_SECRET as string,
+        JWT_SECRET,
         { expiresIn: JWT_EXPIRE }
       );
 

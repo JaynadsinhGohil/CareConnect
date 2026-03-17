@@ -108,12 +108,15 @@ export const doctorApi = {
   getAll: () => apiClient.get('/doctors'),
   getProfile: () => apiClient.get('/doctors/profile'),
   getAppointments: () => apiClient.get('/doctors/appointments'),
+  getPatients: () => apiClient.get('/doctors/patients'),
   updateAppointmentStatus: (appointmentId: string, status: string) =>
     apiClient.patch(`/doctors/appointments/${appointmentId}/status`, { status }),
   getMedicalRecords: () => apiClient.get('/doctors/medical-records'),
   createMedicalRecord: (data: any) => apiClient.post('/doctors/medical-records', data),
+  updateMedicalRecord: (recordId: string, data: any) => apiClient.patch(`/doctors/medical-records/${recordId}`, data),
   getPrescriptions: () => apiClient.get('/doctors/prescriptions'),
   createPrescription: (data: any) => apiClient.post('/doctors/prescriptions', data),
+  updatePrescription: (prescriptionId: string, data: any) => apiClient.patch(`/doctors/prescriptions/${prescriptionId}`, data),
 };
 
 export const patientApi = {
@@ -129,6 +132,10 @@ export const patientApi = {
 
 export const adminApi = {
   createStaff: (data: any) => apiClient.post('/admin/staff', data),
+  getStaff: () => apiClient.get('/admin/staff'),
+  updateStaffStatus: (staffId: string, status: string) =>
+    apiClient.patch(`/admin/staff/${staffId}/status`, { status }),
+  removeStaff: (staffId: string) => apiClient.delete(`/admin/staff/${staffId}`),
   getDoctors: () => apiClient.get('/admin/doctors'),
   getPatients: () => apiClient.get('/admin/patients'),
   getAppointments: () => apiClient.get('/admin/appointments'),

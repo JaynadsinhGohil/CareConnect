@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, FileText, CreditCard, User, Download, Clock } from "lucide-react";
+import { Calendar, FileText, CreditCard, Clock } from "lucide-react";
 import SimpleDashboardLayout from "@/components/dashboard/SimpleDashboardLayout";
 import StatCard from "@/components/dashboard/StatCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,43 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { patientApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+
+const COMMENT_LABEL = "Doctor Comment:";
+const TESTS_LABEL = "Recommended Tests:";
+
+type AttachmentItem = {
+  name: string;
+  type: string;
+  size: number;
+  dataUrl: string;
+};
+
+const parseTreatmentPlan = (treatmentPlan: string) => {
+  if (!treatmentPlan) return { comment: "", tests: "" };
+
+  if (!treatmentPlan.includes(COMMENT_LABEL) && !treatmentPlan.includes(TESTS_LABEL)) {
+    return { comment: treatmentPlan.trim(), tests: "" };
+  }
+
+  const commentStart = treatmentPlan.indexOf(COMMENT_LABEL);
+  const testsStart = treatmentPlan.indexOf(TESTS_LABEL);
+
+  let comment = "";
+  let tests = "";
+
+  if (commentStart >= 0) {
+    const commentContentStart = commentStart + COMMENT_LABEL.length;
+    const commentContentEnd = testsStart > commentStart ? testsStart : treatmentPlan.length;
+    comment = treatmentPlan.slice(commentContentStart, commentContentEnd).trim();
+  }
+
+  if (testsStart >= 0) {
+    const testsContentStart = testsStart + TESTS_LABEL.length;
+    tests = treatmentPlan.slice(testsContentStart).trim();
+  }
+
+  return { comment, tests };
+};
 
 const PatientDashboard = () => {
   const navigate = useNavigate();
@@ -52,6 +89,30 @@ const PatientDashboard = () => {
   const upcomingAppointments = appointments.filter(a => a.status === 'scheduled');
   const completedAppointments = appointments.filter(a => a.status === 'completed');
   const nextAppointment = upcomingAppointments[0];
+  const clinicalUpdates = [
+    ...records.map((record) => {
+      const parsed = parseTreatmentPlan(record.treatment_plan || "");
+      return {
+        id: `record-${record.id}`,
+        title: record.diagnosis || "Clinical Update",
+        doctor: `Dr. ${record.doctor_first_name || ""} ${record.doctor_last_name || ""}`.trim(),
+        date: record.updated_at || record.created_at,
+        comment: parsed.comment || "No additional comments",
+        tests: parsed.tests,
+        medicines: record.medications || "",
+        attachments: Array.isArray(record.attachments) ? record.attachments : [],
+      };
+    }),
+    ...prescriptions.map((rx) => ({
+      id: `legacy-rx-${rx.id}`,
+      title: `Medicine: ${rx.medication_name}`,
+      doctor: `Dr. ${rx.doctor_first_name || ""} ${rx.doctor_last_name || ""}`.trim(),
+      date: rx.created_at,
+      comment: rx.instructions || `${rx.frequency} for ${rx.duration}`,
+      tests: "",
+      medicines: `${rx.medication_name} (${rx.dosage}) - ${rx.frequency} for ${rx.duration}`,
+    })),
+  ].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const initials = user ? `${user.firstName[0]}${user.lastName[0]}` : 'P';
 
@@ -60,8 +121,6 @@ const PatientDashboard = () => {
       role="patient" 
       userName={user?.firstName || "Patient"} 
       userId={user?.id?.substring(0, 8) || "P-00"}
-      onProfileClick={() => navigate('/dashboard/profile-settings')}
-      onHelpClick={() => navigate('/dashboard/help-support')}
     >
       <div className="space-y-6 max-w-7xl mx-auto">
         {/* Header */}
@@ -128,7 +187,6 @@ const PatientDashboard = () => {
           />
         </div>
 
-        {/* Content Grid */}
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Appointments */}
           <Card>
@@ -145,7 +203,7 @@ const PatientDashboard = () => {
               {isLoading ? (
                 <p className="text-muted-foreground">Loading...</p>
               ) : appointments.length > 0 ? (
-                appointments.slice(0, 3).map((apt) => (
+                appointments.slice(0, 6).map((apt) => (
                   <div
                     key={apt.id}
                     className={`p-4 rounded-xl border ${
@@ -180,24 +238,23 @@ const PatientDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Medical Records */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Medical Records</CardTitle>
-                  <CardDescription>Your medical documents</CardDescription>
+                  <CardTitle>Doctor Clinical Updates</CardTitle>
+                  <CardDescription>Unified view for comments, medicines, doses, and tests</CardDescription>
                 </div>
-                <Button variant="outline" size="sm">View All</Button>
+                <Button variant="outline" size="sm">Latest</Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {isLoading ? (
                 <p className="text-muted-foreground">Loading...</p>
-              ) : records.length > 0 ? (
-                records.slice(0, 3).map((record) => (
+              ) : clinicalUpdates.length > 0 ? (
+                clinicalUpdates.slice(0, 4).map((item: any) => (
                   <div
-                    key={record.id}
+                    key={item.id}
                     className="flex items-center justify-between p-4 rounded-xl border hover:bg-secondary/50 transition-colors"
                   >
                     <div className="flex items-center gap-3">
@@ -205,29 +262,74 @@ const PatientDashboard = () => {
                         <FileText className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <p className="font-medium text-foreground">{record.diagnosis}</p>
+                        <p className="font-medium text-foreground">{item.title}</p>
+                        <p className="text-xs text-muted-foreground">Comment: {item.comment}</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(record.created_at).toLocaleDateString()}
+                          {new Date(item.date).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon">
-                      <Download className="w-4 h-4" />
-                    </Button>
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground">No medical records yet</p>
+                <p className="text-muted-foreground">No doctor updates yet</p>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Current Prescriptions */}
         <Card>
           <CardHeader>
-            <CardTitle>Current Prescriptions</CardTitle>
-            <CardDescription>Active medications from your doctors</CardDescription>
+            <CardTitle>All Doctor Updates</CardTitle>
+            <CardDescription>
+              Single stream of everything added by doctor: comment, medicine with dose, and tests like urine test, blood test, etc.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {isLoading ? (
+              <p className="text-muted-foreground">Loading...</p>
+            ) : clinicalUpdates.length > 0 ? (
+              clinicalUpdates.map((item: any) => (
+                <div key={item.id} className="p-4 rounded-xl border bg-card">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-medium text-foreground">{item.title}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{item.doctor || "Doctor"}</p>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{new Date(item.date).toLocaleDateString()}</p>
+                  </div>
+                  <div className="mt-3 text-sm text-foreground">
+                    <p><span className="font-medium">Comment:</span> {item.comment}</p>
+                    {item.medicines ? <p className="text-muted-foreground mt-1"><span className="font-medium">Medicines:</span> {item.medicines}</p> : null}
+                    {item.tests ? <p className="text-muted-foreground mt-1"><span className="font-medium">Tests:</span> {item.tests}</p> : null}
+                    {item.attachments?.length ? (
+                      <div className="mt-2 space-y-1">
+                        <p className="font-medium text-muted-foreground">Reports:</p>
+                        {item.attachments.map((attachment: AttachmentItem, idx: number) => (
+                          <a
+                            key={`${item.id}-${idx}`}
+                            href={attachment.dataUrl}
+                            download={attachment.name}
+                            className="block underline text-primary"
+                          >
+                            {attachment.name}
+                          </a>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-muted-foreground">No doctor updates available yet.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>My Prescriptions</CardTitle>
+            <CardDescription>All active prescriptions provided by your doctors</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -235,20 +337,12 @@ const PatientDashboard = () => {
             ) : prescriptions.length > 0 ? (
               <div className="grid md:grid-cols-2 gap-4">
                 {prescriptions.map((rx) => (
-                  <div
-                    key={rx.id}
-                    className="p-4 rounded-xl border bg-card"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium text-foreground">{rx.medication_name}</p>
-                        <p className="text-sm text-muted-foreground mt-1">{rx.dosage} - {rx.frequency}</p>
-                        <div className="flex items-center gap-3 mt-3 text-sm">
-                          <Badge variant="secondary">{rx.duration}</Badge>
-                          <span className="text-muted-foreground">by Dr. {rx.doctor_first_name}</span>
-                        </div>
-                      </div>
-                    </div>
+                  <div key={rx.id} className="p-4 rounded-xl border bg-card">
+                    <p className="font-medium text-foreground">{rx.medication_name}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{rx.dosage} - {rx.frequency}</p>
+                    <p className="text-sm text-muted-foreground mt-1">Duration: {rx.duration}</p>
+                    <p className="text-sm text-muted-foreground mt-1">Instructions: {rx.instructions || "N/A"}</p>
+                    <p className="text-xs text-muted-foreground mt-2">Prescribed by Dr. {rx.doctor_first_name} {rx.doctor_last_name}</p>
                   </div>
                 ))}
               </div>

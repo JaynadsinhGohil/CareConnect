@@ -204,6 +204,11 @@ export const patientController = {
             if (!patient) {
                 return res.status(404).json({ error: 'Patient not found' });
             }
+            // Check for conflicts
+            const hasConflict = await appointmentModel.checkConflict(doctorId, new Date(appointmentDate));
+            if (hasConflict) {
+                return res.status(409).json({ error: 'Doctor has another appointment at this time. Please choose a different time.' });
+            }
             const appointment = await appointmentModel.create(patient.id, doctorId, new Date(appointmentDate), reason);
             res.status(201).json(appointment);
         }
@@ -301,6 +306,97 @@ export const prescriptionController = {
         }
     },
 };
+export const adminController = {
+    getStaff: async (req, res) => {
+        try {
+            const result = await pool.query(`
+          SELECT
+            u.id,
+            u.first_name AS "firstName",
+            u.last_name AS "lastName",
+            u.email,
+            u.phone,
+            u.role,
+            u.status,
+            u.created_at AS "createdAt",
+            d.specialization
+          FROM users u
+          LEFT JOIN doctors d ON d.user_id = u.id
+          WHERE u.role IN ('admin', 'doctor', 'receptionist')
+          ORDER BY u.created_at DESC
+        `);
+            res.json(result.rows);
+        }
+        catch (error) {
+            console.error('Get staff error:', error);
+            res.status(500).json({ error: 'Failed to get staff list' });
+        }
+    },
+    updateStaffStatus: async (req, res) => {
+        try {
+            const { staffId } = req.params;
+            const { status } = req.body;
+            if (!['active', 'inactive', 'suspended'].includes(status)) {
+                return res.status(400).json({ error: 'Invalid status value' });
+            }
+            const targetUser = await pool.query(`SELECT id, role FROM users WHERE id = $1 AND role IN ('admin', 'doctor', 'receptionist')`, [staffId]);
+            if (targetUser.rowCount === 0) {
+                return res.status(404).json({ error: 'Staff member not found' });
+            }
+            const userRole = targetUser.rows[0].role;
+            if (userRole === 'admin' && status !== 'active') {
+                const activeAdminCount = await pool.query(`SELECT COUNT(*)::int AS count FROM users WHERE role = 'admin' AND status = 'active'`);
+                if (activeAdminCount.rows[0].count <= 1) {
+                    return res.status(400).json({ error: 'At least one active admin must remain in the system' });
+                }
+            }
+            const updatedResult = await pool.query(`
+          UPDATE users
+          SET status = $1, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2
+          RETURNING
+            id,
+            first_name AS "firstName",
+            last_name AS "lastName",
+            email,
+            phone,
+            role,
+            status,
+            created_at AS "createdAt"
+        `, [status, staffId]);
+            res.json(updatedResult.rows[0]);
+        }
+        catch (error) {
+            console.error('Update staff status error:', error);
+            res.status(500).json({ error: 'Failed to update staff status' });
+        }
+    },
+    deleteStaff: async (req, res) => {
+        try {
+            const { staffId } = req.params;
+            if (staffId === req.userId) {
+                return res.status(400).json({ error: 'You cannot remove your own account' });
+            }
+            const targetUser = await pool.query(`SELECT id, role FROM users WHERE id = $1 AND role IN ('admin', 'doctor', 'receptionist')`, [staffId]);
+            if (targetUser.rowCount === 0) {
+                return res.status(404).json({ error: 'Staff member not found' });
+            }
+            const userRole = targetUser.rows[0].role;
+            if (userRole === 'admin') {
+                const adminCount = await pool.query(`SELECT COUNT(*)::int AS count FROM users WHERE role = 'admin'`);
+                if (adminCount.rows[0].count <= 1) {
+                    return res.status(400).json({ error: 'Cannot remove the last admin account' });
+                }
+            }
+            await pool.query(`DELETE FROM users WHERE id = $1 AND role IN ('admin', 'doctor', 'receptionist')`, [staffId]);
+            res.json({ message: 'Staff member removed successfully' });
+        }
+        catch (error) {
+            console.error('Delete staff error:', error);
+            res.status(500).json({ error: 'Failed to remove staff member' });
+        }
+    },
+};
 export const appointmentController = {
     getAll: async (req, res) => {
         try {
@@ -325,11 +421,30 @@ export const appointmentController = {
             res.status(500).json({ error: 'Failed to get appointment' });
         }
     },
+    checkConflict: async (req, res) => {
+        try {
+            const { doctorId, appointmentDate } = req.body;
+            if (!doctorId || !appointmentDate) {
+                return res.status(400).json({ error: 'Missing required fields' });
+            }
+            const hasConflict = await appointmentModel.checkConflict(doctorId, new Date(appointmentDate));
+            res.json({ hasConflict });
+        }
+        catch (error) {
+            console.error('Check conflict error:', error);
+            res.status(500).json({ error: 'Failed to check appointment conflict' });
+        }
+    },
     createAppointment: async (req, res) => {
         try {
             const { patientId, doctorId, appointmentDate, reason, status } = req.body;
             if (!patientId || !doctorId || !appointmentDate) {
                 return res.status(400).json({ error: 'Missing required fields' });
+            }
+            // Check for conflicts
+            const hasConflict = await appointmentModel.checkConflict(doctorId, new Date(appointmentDate));
+            if (hasConflict) {
+                return res.status(409).json({ error: 'Doctor has another appointment at this time. Please choose a different time.' });
             }
             const appointment = await appointmentModel.create(patientId, doctorId, new Date(appointmentDate), reason || 'General checkup');
             res.status(201).json(appointment);

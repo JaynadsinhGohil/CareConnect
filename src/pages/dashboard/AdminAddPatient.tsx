@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, UserPlus, Users, Calendar, AlertCircle, Mail, Check, LayoutDashboard, ClipboardList, FileText, Settings } from "lucide-react";
+import { ArrowLeft, UserPlus, Users, Calendar, AlertCircle, Mail, Check, LayoutDashboard, ClipboardList, Settings } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,6 @@ const AdminAddPatient = () => {
     { label: "Staff Management", icon: <Users className="w-5 h-5" />, path: "/dashboard/admin/staff" },
     { label: "Patients", icon: <UserPlus className="w-5 h-5" />, path: "/dashboard/admin/patients" },
     { label: "Appointments", icon: <ClipboardList className="w-5 h-5" />, path: "/dashboard/admin/appointments" },
-    { label: "Reports", icon: <FileText className="w-5 h-5" />, path: "/dashboard/admin/reports" },
     { label: "Settings", icon: <Settings className="w-5 h-5" />, path: "/dashboard/admin/settings" },
   ];
 

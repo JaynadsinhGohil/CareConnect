@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, Stethoscope, FileText, Settings, Activity, UserPlus, ClipboardList, Download, X } from "lucide-react";
+import { LayoutDashboard, Users, Stethoscope, Settings, Activity, UserPlus, ClipboardList } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import StatCard from "@/components/dashboard/StatCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +19,6 @@ const navItems = [
   { label: "Staff Management", icon: <Users className="w-5 h-5" />, path: "/dashboard/admin/staff" },
   { label: "Patients", icon: <UserPlus className="w-5 h-5" />, path: "/dashboard/admin/patients" },
   { label: "Appointments", icon: <ClipboardList className="w-5 h-5" />, path: "/dashboard/admin/appointments" },
-  { label: "Reports", icon: <FileText className="w-5 h-5" />, path: "/dashboard/admin/reports" },
   { label: "Settings", icon: <Settings className="w-5 h-5" />, path: "/dashboard/admin/settings" },
 ];
 
@@ -42,7 +41,6 @@ const AdminDashboard = () => {
 
   // Modal states
   const [isViewAppointmentsOpen, setIsViewAppointmentsOpen] = useState(false);
-  const [isReportsOpen, setIsReportsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const fetchDashboardData = async () => {
@@ -96,13 +94,6 @@ const AdminDashboard = () => {
     fetchDashboardData();
   }, []);
 
-  const handleGenerateReport = () => {
-    toast({
-      title: "Report Generated",
-      description: "System report downloaded successfully!",
-    });
-  };
-
   const recentActivity = appointments.map((apt: any, idx: number) => ({
     id: idx,
     action: `Appointment - ${apt.reason_for_visit || 'Checkup'}`,
@@ -135,13 +126,6 @@ const AdminDashboard = () => {
             <p className="text-muted-foreground">Welcome back! Here's your system overview.</p>
           </div>
           <div className="flex gap-3">
-            <Button 
-              variant="outline" 
-              onClick={handleGenerateReport}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Download Report
-            </Button>
             <Button 
               variant="hero"
               onClick={() => navigate('/dashboard/admin/add-staff')}
@@ -248,6 +232,15 @@ const AdminDashboard = () => {
               <Button 
                 variant="outline" 
                 className="w-full justify-start gap-3 h-auto py-3"
+                onClick={() => navigate('/dashboard/admin/staff')}
+              >
+                <Users className="w-4 h-4 text-accent flex-shrink-0" />
+                <span>Manage Staff Directory</span>
+              </Button>
+
+              <Button 
+                variant="outline" 
+                className="w-full justify-start gap-3 h-auto py-3"
                 onClick={() => navigate('/dashboard/admin/add-staff')}
               >
                 <Users className="w-4 h-4 text-success flex-shrink-0" />
@@ -288,67 +281,6 @@ const AdminDashboard = () => {
                         </div>
                       ))
                     )}
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              <Dialog open={isReportsOpen} onOpenChange={setIsReportsOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start gap-3 h-auto py-3">
-                    <FileText className="w-4 h-4 text-accent flex-shrink-0" />
-                    <span>Generate Reports</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Generate Reports</DialogTitle>
-                    <DialogDescription>Select the report type you want to generate</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-3">
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start"
-                      onClick={() => {
-                        toast({ title: "Report Generated", description: "System report downloaded successfully!" });
-                        setIsReportsOpen(false);
-                      }}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      System Overview Report
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start"
-                      onClick={() => {
-                        toast({ title: "Report Generated", description: "Patient statistics report downloaded!" });
-                        setIsReportsOpen(false);
-                      }}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Patient Statistics Report
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start"
-                      onClick={() => {
-                        toast({ title: "Report Generated", description: "Appointment analytics report downloaded!" });
-                        setIsReportsOpen(false);
-                      }}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Appointment Analytics Report
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start"
-                      onClick={() => {
-                        toast({ title: "Report Generated", description: "Staff performance report downloaded!" });
-                        setIsReportsOpen(false);
-                      }}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Staff Performance Report
-                    </Button>
                   </div>
                 </DialogContent>
               </Dialog>

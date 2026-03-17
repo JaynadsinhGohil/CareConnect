@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { userModel, doctorModel, patientModel, refreshTokenModel } from '../models/index.js';
 const JWT_SECRET = (process.env.JWT_SECRET || 'your_secret_key');
 const JWT_EXPIRE = (process.env.JWT_EXPIRE || '7d');
+const REFRESH_EXPIRE = '30d';
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '10');
 export const authController = {
     register: async (req, res) => {
@@ -30,7 +31,7 @@ export const authController = {
             }
             // Generate tokens
             const accessToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRE });
-            const refreshToken = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+            const refreshToken = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: REFRESH_EXPIRE });
             // Hash and store refresh token
             const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
             await refreshTokenModel.create(user.id, refreshTokenHash, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
@@ -74,7 +75,7 @@ export const authController = {
             }
             // Generate tokens
             const accessToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRE });
-            const refreshToken = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+            const refreshToken = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: REFRESH_EXPIRE });
             // Hash and store refresh token
             const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
             await refreshTokenModel.create(user.id, refreshTokenHash, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));

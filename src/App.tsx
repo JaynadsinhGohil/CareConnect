@@ -14,6 +14,7 @@ import ReceptionistScheduleAppointment from "./pages/dashboard/ReceptionistSched
 import AddNewPatient from "./pages/dashboard/AddNewPatient";
 import AdminAddPatient from "./pages/dashboard/AdminAddPatient";
 import AdminAddStaff from "./pages/dashboard/AdminAddStaff";
+import AdminStaffManagement from "./pages/dashboard/AdminStaffManagement";
 import PatientDashboard from "./pages/dashboard/PatientDashboard";
 import ProfileSettings from "./pages/dashboard/ProfileSettings";
 import HelpSupport from "./pages/dashboard/HelpSupport";
@@ -80,6 +81,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRoles={["admin", "receptionist"]}>
                   <AdminAddPatient />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/admin/staff"
+              element={
+                <ProtectedRoute requiredRoles={["admin"]}>
+                  <AdminStaffManagement />
                 </ProtectedRoute>
               }
             />

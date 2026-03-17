@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
-import { Calendar, FileText, Users, ClipboardList, Clock, User } from "lucide-react";
+import { Calendar, FileText, Users, Clock, PenSquare, XCircle, CheckCircle2 } from "lucide-react";
 import SimpleDashboardLayout from "@/components/dashboard/SimpleDashboardLayout";
 import StatCard from "@/components/dashboard/StatCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { doctorApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -14,82 +18,293 @@ const statusColors = {
   completed: "bg-success/10 text-success border-success/20",
   "in-progress": "bg-warning/10 text-warning border-warning/20",
   scheduled: "bg-secondary text-muted-foreground border-border",
+  cancelled: "bg-destructive/10 text-destructive border-destructive/20",
+  "no-show": "bg-accent/10 text-accent border-accent/20",
+};
+
+const COMMENT_LABEL = "Doctor Comment:";
+const TESTS_LABEL = "Recommended Tests:";
+
+const toDateOnly = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+type AttachmentItem = {
+  name: string;
+  type: string;
+  size: number;
+  dataUrl: string;
+};
+
+const parseTreatmentPlan = (treatmentPlan: string) => {
+  if (!treatmentPlan) return { comment: "", tests: "" };
+
+  if (!treatmentPlan.includes(COMMENT_LABEL) && !treatmentPlan.includes(TESTS_LABEL)) {
+    return { comment: treatmentPlan.trim(), tests: "" };
+  }
+
+  const commentStart = treatmentPlan.indexOf(COMMENT_LABEL);
+  const testsStart = treatmentPlan.indexOf(TESTS_LABEL);
+
+  let comment = "";
+  let tests = "";
+
+  if (commentStart >= 0) {
+    const commentContentStart = commentStart + COMMENT_LABEL.length;
+    const commentContentEnd = testsStart > commentStart ? testsStart : treatmentPlan.length;
+    comment = treatmentPlan.slice(commentContentStart, commentContentEnd).trim();
+  }
+
+  if (testsStart >= 0) {
+    const testsContentStart = testsStart + TESTS_LABEL.length;
+    tests = treatmentPlan.slice(testsContentStart).trim();
+  }
+
+  return { comment, tests };
+};
+
+const buildTreatmentPlan = (comment: string, tests: string) => {
+  const sections: string[] = [];
+  sections.push(`${COMMENT_LABEL}\n${comment.trim()}`);
+  if (tests.trim()) {
+    sections.push(`${TESTS_LABEL}\n${tests.trim()}`);
+  }
+  return sections.join("\n\n");
 };
 
 const DoctorDashboard = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [patients, setPatients] = useState<any[]>([]);
+  const [records, setRecords] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedPatientId, setSelectedPatientId] = useState("");
+  const [selectedPatientName, setSelectedPatientName] = useState("");
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [isPatientDetailsOpen, setIsPatientDetailsOpen] = useState(false);
+  const [isClinicalDialogOpen, setIsClinicalDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [clinicalForm, setClinicalForm] = useState({
+    diagnosis: "",
+    comment: "",
+    tests: "",
+    medications: "",
+    attachments: [] as AttachmentItem[],
+  });
+
+  const fetchDashboardData = async () => {
+    try {
+      setIsLoading(true);
+      const [profileRes, appointmentsRes, patientsRes, recordsRes] = await Promise.all([
+        doctorApi.getProfile(),
+        doctorApi.getAppointments(),
+        doctorApi.getPatients(),
+        doctorApi.getMedicalRecords(),
+      ]);
+
+      if (profileRes.data) setProfile(profileRes.data);
+      if (appointmentsRes.data) setAppointments(appointmentsRes.data);
+      if (patientsRes.data) setPatients(Array.isArray(patientsRes.data) ? patientsRes.data : []);
+      if (recordsRes.data) setRecords(Array.isArray(recordsRes.data) ? recordsRes.data : []);
+
+      if (profileRes.error || appointmentsRes.error || recordsRes.error) {
+        console.error("Failed to fetch doctor dashboard data");
+      }
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setIsLoading(true);
-        const [profileRes, appointmentsRes] = await Promise.all([
-          doctorApi.getProfile(),
-          doctorApi.getAppointments(),
-        ]);
-
-        if (profileRes.data) setProfile(profileRes.data);
-        if (appointmentsRes.data) setAppointments(appointmentsRes.data);
-
-        if (profileRes.error || appointmentsRes.error) {
-          console.error('Failed to fetch data');
-        }
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchDashboardData();
   }, []);
 
-  const scheduledCount = appointments.filter(a => a.status === 'scheduled').length;
-  const completedCount = appointments.filter(a => a.status === 'completed').length;
-  const todayAppointments = appointments.slice(0, 6);
+  const today = toDateOnly(new Date());
+  const scheduledCount = appointments.filter((a) => a.status === "scheduled").length;
+  const completedCount = appointments.filter((a) => a.status === "completed").length;
+  const todayAppointments = appointments.filter((a) => toDateOnly(new Date(a.appointment_date)).getTime() === today.getTime());
+  const futureAppointments = appointments.filter((a) => toDateOnly(new Date(a.appointment_date)).getTime() > today.getTime());
+  const pastAppointments = appointments.filter((a) => toDateOnly(new Date(a.appointment_date)).getTime() < today.getTime() || a.status === "completed");
+
+  const uniquePatients = appointments.reduce((acc: any[], apt: any) => {
+    if (!acc.find((p) => p.patient_id === apt.patient_id)) {
+      acc.push({
+        patient_id: apt.patient_id,
+        patient_first_name: apt.patient_first_name,
+        patient_last_name: apt.patient_last_name,
+      });
+    }
+    return acc;
+  }, []);
+
+  const resetClinicalForm = () => {
+    setClinicalForm({ diagnosis: "", comment: "", tests: "", medications: "", attachments: [] });
+  };
+
+  const openNewClinicalUpdate = (patientId: string, patientName: string) => {
+    setSelectedPatientId(patientId);
+    setSelectedPatientName(patientName);
+    setEditingRecordId(null);
+    resetClinicalForm();
+    setIsClinicalDialogOpen(true);
+  };
+
+  const openPatientDetails = (patientId: string) => {
+    const patient = patients.find((p) => p.id === patientId) || null;
+    setSelectedPatient(patient);
+    setIsPatientDetailsOpen(true);
+  };
+
+  const openEditClinicalUpdate = (record: any) => {
+    const parsedPlan = parseTreatmentPlan(record.treatment_plan || "");
+
+    setSelectedPatientId(record.patient_id);
+    setSelectedPatientName(`${record.patient_first_name || ""} ${record.patient_last_name || ""}`.trim() || "Patient");
+    setEditingRecordId(record.id);
+    setClinicalForm({
+      diagnosis: record.diagnosis || "",
+      comment: parsedPlan.comment,
+      tests: parsedPlan.tests,
+      medications: record.medications || "",
+      attachments: Array.isArray(record.attachments) ? record.attachments : [],
+    });
+    setIsClinicalDialogOpen(true);
+  };
+
+  const handleAttachmentUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const nextAttachments = await Promise.all(
+      Array.from(files).map(
+        (file) =>
+          new Promise<AttachmentItem>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              resolve({
+                name: file.name,
+                type: file.type || "application/octet-stream",
+                size: file.size,
+                dataUrl: String(reader.result || ""),
+              });
+            };
+            reader.onerror = () => reject(new Error(`Unable to read ${file.name}`));
+            reader.readAsDataURL(file);
+          })
+      )
+    );
+
+    setClinicalForm((prev) => ({
+      ...prev,
+      attachments: [...prev.attachments, ...nextAttachments],
+    }));
+  };
+
+  const removeAttachment = (index: number) => {
+    setClinicalForm((prev) => ({
+      ...prev,
+      attachments: prev.attachments.filter((_, idx) => idx !== index),
+    }));
+  };
+
+  const handleAppointmentStatusUpdate = async (appointmentId: string, status: "completed" | "cancelled") => {
+    try {
+      const response = await doctorApi.updateAppointmentStatus(appointmentId, status);
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      await fetchDashboardData();
+      toast.success(`Appointment ${status} successfully.`);
+    } catch (error: any) {
+      toast.error(error.message || `Failed to ${status} appointment.`);
+    }
+  };
+
+  const handleSaveClinicalUpdate = async () => {
+    if (!selectedPatientId || !clinicalForm.diagnosis.trim() || !clinicalForm.comment.trim()) {
+      toast.error("Diagnosis and doctor comment are required.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        patientId: selectedPatientId,
+        diagnosis: clinicalForm.diagnosis,
+        treatment_plan: buildTreatmentPlan(clinicalForm.comment, clinicalForm.tests),
+        medications: clinicalForm.medications,
+        attachments: clinicalForm.attachments,
+      };
+
+      const response = editingRecordId
+        ? await doctorApi.updateMedicalRecord(editingRecordId, payload)
+        : await doctorApi.createMedicalRecord(payload);
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      await fetchDashboardData();
+      setIsClinicalDialogOpen(false);
+      setEditingRecordId(null);
+      resetClinicalForm();
+      toast.success(editingRecordId ? "Clinical update modified successfully." : "Clinical update added successfully.");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save clinical update.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <SimpleDashboardLayout role="doctor" userName={`Dr. ${user?.lastName}`} userId={user?.id?.substring(0, 8) || "DR-00"}>
       <div className="space-y-6 max-w-7xl mx-auto">
-        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Good Morning, Dr. {user?.lastName}</h1>
             <p className="text-muted-foreground">You have {scheduledCount} appointments scheduled.</p>
           </div>
-          <div className="flex gap-3">
-            <Button variant="outline">View All Patients</Button>
-            <Button variant="hero">
-              <FileText className="w-4 h-4 mr-2" />
-              New Record
-            </Button>
-          </div>
+          <Button
+            variant="hero"
+            onClick={() => {
+              if (uniquePatients.length === 0) {
+                toast.info("No patients found from appointments yet.");
+                return;
+              }
+              const firstPatient = uniquePatients[0];
+              openNewClinicalUpdate(
+                firstPatient.patient_id,
+                `${firstPatient.patient_first_name} ${firstPatient.patient_last_name}`
+              );
+            }}
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            New Clinical Update
+          </Button>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
-            title="Today's Patients"
-            value={scheduledCount.toString()}
+            title="Today's Appointments"
+            value={todayAppointments.length.toString()}
             icon={<Users className="w-6 h-6" />}
-            description={`${completedCount} completed this month`}
+            description={`${futureAppointments.length} upcoming`}
             variant="primary"
           />
           <StatCard
             title="Total Appointments"
             value={appointments.length.toString()}
             icon={<Calendar className="w-6 h-6" />}
-            description="All time"
+            description={`${pastAppointments.length} past`}
             variant="success"
           />
           <StatCard
-            title="Completed"
-            value={completedCount.toString()}
+            title="Clinical Updates"
+            value={records.length.toString()}
             icon={<FileText className="w-6 h-6" />}
-            description="This month"
+            description="Reports + medicines + comments"
             variant="warning"
           />
           <StatCard
@@ -101,15 +316,13 @@ const DoctorDashboard = () => {
           />
         </div>
 
-        {/* Content Grid */}
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Today's Schedule */}
           <Card className="lg:col-span-2">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Your Appointments</CardTitle>
-                  <CardDescription>Recent and upcoming appointments</CardDescription>
+                  <CardDescription>Present, past, and future appointments with management</CardDescription>
                 </div>
                 <Button variant="ghost" size="sm">View Full Calendar</Button>
               </div>
@@ -119,36 +332,58 @@ const DoctorDashboard = () => {
                 <p className="text-muted-foreground">Loading...</p>
               ) : appointments.length > 0 ? (
                 <div className="space-y-3">
-                  {todayAppointments.map((appointment) => (
-                    <div
-                      key={appointment.id}
-                      className={`flex items-center justify-between p-4 rounded-xl border transition-all hover:shadow-sm ${
-                        appointment.status === "in-progress" ? "bg-warning/5 border-warning/20" : "bg-card"
-                      }`}
-                    >
+                  {appointments.slice(0, 12).map((appointment) => (
+                    <div key={appointment.id} className="flex items-center justify-between p-4 rounded-xl border bg-card hover:shadow-sm transition-all">
                       <div className="flex items-center gap-4">
                         <Avatar className="h-10 w-10">
                           <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                            {appointment.patient_first_name?.[0]}{appointment.patient_last_name?.[0]}
+                            {appointment.patient_first_name?.[0]}
+                            {appointment.patient_last_name?.[0]}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-medium text-foreground">{appointment.patient_first_name} {appointment.patient_last_name}</p>
-                          <p className="text-sm text-muted-foreground">{appointment.reason_for_visit || 'Appointment'}</p>
+                          <p className="font-medium text-foreground">
+                            {appointment.patient_first_name} {appointment.patient_last_name}
+                          </p>
+                          <p className="text-sm text-muted-foreground">{appointment.reason_for_visit || "Appointment"}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {toDateOnly(new Date(appointment.appointment_date)).getTime() > today.getTime()
+                              ? "Future"
+                              : toDateOnly(new Date(appointment.appointment_date)).getTime() === today.getTime()
+                              ? "Present"
+                              : "Past"}
+                          </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="font-medium text-foreground text-sm">
-                            {new Date(appointment.appointment_date).toLocaleDateString()}
-                          </p>
-                          <Badge className={`${statusColors[appointment.status as keyof typeof statusColors]} border`}>
-                            {appointment.status}
-                          </Badge>
+                      <div className="text-right space-y-2">
+                        <p className="font-medium text-foreground text-sm">
+                          {new Date(appointment.appointment_date).toLocaleDateString()}
+                        </p>
+                        <Badge className={`${statusColors[appointment.status as keyof typeof statusColors]} border`}>
+                          {appointment.status}
+                        </Badge>
+                        <div className="flex gap-2 justify-end">
+                          {appointment.status === "scheduled" ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleAppointmentStatusUpdate(appointment.id, "completed")}
+                              >
+                                <CheckCircle2 className="w-4 h-4 mr-1" />
+                                Complete
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleAppointmentStatusUpdate(appointment.id, "cancelled")}
+                              >
+                                <XCircle className="w-4 h-4 mr-1" />
+                                Cancel
+                              </Button>
+                            </>
+                          ) : null}
                         </div>
-                        <Button variant="ghost" size="sm">
-                          View
-                        </Button>
                       </div>
                     </div>
                   ))}
@@ -159,33 +394,218 @@ const DoctorDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Quick Patient Access */}
           <Card>
             <CardHeader>
               <CardTitle>Recent Patients</CardTitle>
-              <CardDescription>Quick access to patient records</CardDescription>
+              <CardDescription>View patient details and then write clinical updates</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {appointments.slice(0, 4).map((patient) => (
-                <div key={patient.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 cursor-pointer transition-colors">
+              {patients.slice(0, 6).map((patient) => (
+                <div key={patient.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors">
                   <Avatar className="h-9 w-9">
                     <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                      {patient.patient_first_name?.[0]}{patient.patient_last_name?.[0]}
+                      {patient.first_name?.[0]}
+                      {patient.last_name?.[0]}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{patient.patient_first_name} {patient.patient_last_name}</p>
-                    <p className="text-xs text-muted-foreground">{patient.status}</p>
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {patient.first_name} {patient.last_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Patient</p>
                   </div>
-                  <User className="w-4 h-4 text-muted-foreground" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openPatientDetails(patient.id)}
+                  >
+                    Details
+                  </Button>
                 </div>
               ))}
-              <Button variant="outline" className="w-full">
-                View All Patients
-              </Button>
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>All Clinical Updates</CardTitle>
+            <CardDescription>
+              Unified entries for report comments, prescribed medicines, doses, and tests (blood test, urine test, etc.)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {records.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No clinical updates created yet.</p>
+            ) : (
+              records.slice(0, 8).map((record) => {
+                const parsed = parseTreatmentPlan(record.treatment_plan || "");
+                return (
+                  <div key={record.id} className="p-4 border rounded-lg bg-card">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-medium text-sm">
+                          {record.patient_first_name} {record.patient_last_name}
+                        </p>
+                        <p className="text-sm text-foreground mt-1">Diagnosis: {record.diagnosis}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Comment: {parsed.comment || "N/A"}</p>
+                        {parsed.tests ? <p className="text-xs text-muted-foreground mt-1">Tests: {parsed.tests}</p> : null}
+                        {record.medications ? <p className="text-xs text-muted-foreground mt-1">Medicines: {record.medications}</p> : null}
+                        {Array.isArray(record.attachments) && record.attachments.length > 0 ? (
+                          <div className="mt-2 text-xs text-muted-foreground space-y-1">
+                            <p className="font-medium">Reports:</p>
+                            {record.attachments.map((attachment: AttachmentItem, index: number) => (
+                              <a
+                                key={`${record.id}-${index}`}
+                                href={attachment.dataUrl}
+                                download={attachment.name}
+                                className="block underline text-primary"
+                              >
+                                {attachment.name}
+                              </a>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => openEditClinicalUpdate(record)}>
+                        <PenSquare className="w-4 h-4 mr-1" />
+                        Edit
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
+
+        <Dialog open={isClinicalDialogOpen} onOpenChange={setIsClinicalDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{editingRecordId ? "Modify Clinical Update" : "Add Clinical Update"}</DialogTitle>
+              <DialogDescription>
+                Single place for doctor comment, medicines with dose/frequency, and test recommendations for {selectedPatientName}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Diagnosis</Label>
+                <Input
+                  value={clinicalForm.diagnosis}
+                  onChange={(e) => setClinicalForm((prev) => ({ ...prev, diagnosis: e.target.value }))}
+                  placeholder="e.g., Viral Fever"
+                />
+              </div>
+              <div>
+                <Label>Doctor Comment</Label>
+                <Textarea
+                  value={clinicalForm.comment}
+                  onChange={(e) => setClinicalForm((prev) => ({ ...prev, comment: e.target.value }))}
+                  placeholder="Clinical notes, advice, follow-up instructions"
+                />
+              </div>
+              <div>
+                <Label>Prescribed Medicines (include dose/frequency)</Label>
+                <Textarea
+                  value={clinicalForm.medications}
+                  onChange={(e) => setClinicalForm((prev) => ({ ...prev, medications: e.target.value }))}
+                  placeholder="Paracetamol 500mg - 1 tab twice daily for 5 days"
+                />
+              </div>
+              <div>
+                <Label>Tests / Reports</Label>
+                <Textarea
+                  value={clinicalForm.tests}
+                  onChange={(e) => setClinicalForm((prev) => ({ ...prev, tests: e.target.value }))}
+                  placeholder="Urine test, blood test, thyroid profile, etc."
+                />
+              </div>
+              <div>
+                <Label>Attach Report Files (PDF, JPEG, PNG, etc.)</Label>
+                <Input
+                  type="file"
+                  multiple
+                  accept="application/pdf,image/*,.doc,.docx"
+                  onChange={(e) => {
+                    handleAttachmentUpload(e.target.files).catch((error) => {
+                      toast.error(error.message || "Failed to attach files.");
+                    });
+                    e.target.value = "";
+                  }}
+                />
+                {clinicalForm.attachments.length > 0 ? (
+                  <div className="mt-2 space-y-1">
+                    {clinicalForm.attachments.map((attachment, index) => (
+                      <div key={`${attachment.name}-${index}`} className="flex items-center justify-between text-xs border rounded p-2">
+                        <span className="truncate mr-3">{attachment.name}</span>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeAttachment(index)}>
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              <Button className="w-full" onClick={handleSaveClinicalUpdate} disabled={isSubmitting}>
+                {isSubmitting ? "Saving..." : editingRecordId ? "Save Changes" : "Save Clinical Update"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isPatientDetailsOpen} onOpenChange={setIsPatientDetailsOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Patient Details</DialogTitle>
+              <DialogDescription>Patient profile, illness history, and quick clinical action</DialogDescription>
+            </DialogHeader>
+            {selectedPatient ? (
+              <div className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4 text-sm">
+                  <p><span className="font-medium">Name:</span> {selectedPatient.first_name} {selectedPatient.last_name}</p>
+                  <p><span className="font-medium">Email:</span> {selectedPatient.email || "N/A"}</p>
+                  <p><span className="font-medium">Phone:</span> {selectedPatient.phone || "N/A"}</p>
+                  <p><span className="font-medium">Gender:</span> {selectedPatient.gender || "N/A"}</p>
+                  <p><span className="font-medium">Blood Type:</span> {selectedPatient.blood_type || "N/A"}</p>
+                  <p><span className="font-medium">DOB:</span> {selectedPatient.date_of_birth ? new Date(selectedPatient.date_of_birth).toLocaleDateString() : "N/A"}</p>
+                </div>
+
+                <div className="text-sm space-y-2">
+                  <p><span className="font-medium">Illness / Medical History:</span> {selectedPatient.medical_history || "N/A"}</p>
+                  <p><span className="font-medium">Allergies:</span> {selectedPatient.allergies || "N/A"}</p>
+                  <p><span className="font-medium">Current Medications:</span> {selectedPatient.current_medications || "N/A"}</p>
+                </div>
+
+                <div>
+                  <p className="font-medium text-sm mb-2">Appointments</p>
+                  <div className="space-y-2 max-h-48 overflow-auto">
+                    {appointments
+                      .filter((appointment) => appointment.patient_id === selectedPatient.id)
+                      .slice(0, 6)
+                      .map((appointment) => (
+                        <div key={appointment.id} className="p-2 border rounded text-xs">
+                          <p>{new Date(appointment.appointment_date).toLocaleDateString()} - {appointment.reason_for_visit || "General consultation"}</p>
+                          <Badge className={`mt-1 ${statusColors[appointment.status as keyof typeof statusColors]} border`}>{appointment.status}</Badge>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    setIsPatientDetailsOpen(false);
+                    openNewClinicalUpdate(selectedPatient.id, `${selectedPatient.first_name} ${selectedPatient.last_name}`);
+                  }}
+                >
+                  Write Clinical Update
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Patient details not available.</p>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </SimpleDashboardLayout>
   );

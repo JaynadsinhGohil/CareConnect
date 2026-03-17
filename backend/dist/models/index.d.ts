@@ -32,6 +32,7 @@ export declare const patientModel: {
 export declare const appointmentModel: {
     create: (patientId: string, doctorId: string, appointmentDate: Date, reason: string) => Promise<any>;
     findById: (id: string) => Promise<any>;
+    checkConflict: (doctorId: string, appointmentDate: Date) => Promise<boolean>;
     getByPatient: (patientId: string) => Promise<any[]>;
     getByDoctor: (doctorId: string) => Promise<any[]>;
     getAll: () => Promise<any[]>;
