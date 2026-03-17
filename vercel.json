@@ -1,14 +1,7 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "env": {
-    "VITE_API_URL": "@vite_api_url"
-  },
   "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://care-connect-bc5i.vercel.app/api/:path*"
-    },
     {
       "source": "/:path((?!.*\\.).*)",
       "destination": "/index.html"
