@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { LayoutDashboard, Users, Stethoscope, FileText, Settings, Activity, UserPlus, ClipboardList, Download, X } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import StatCard from "@/components/dashboard/StatCard";
@@ -23,8 +24,12 @@ const navItems = [
 ];
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  console.log("AdminDashboard component loaded, user:", user);
+  
   const [stats, setStats] = useState({
     totalPatients: 0,
     totalDoctors: 0,
@@ -36,59 +41,14 @@ const AdminDashboard = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Modal states
-  const [isRegisterPatientOpen, setIsRegisterPatientOpen] = useState(false);
-  const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
   const [isViewAppointmentsOpen, setIsViewAppointmentsOpen] = useState(false);
   const [isReportsOpen, setIsReportsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isProfileSettingsOpen, setIsProfileSettingsOpen] = useState(false);
-  const [createdStaffCredentials, setCreatedStaffCredentials] = useState<{
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-    role: string;
-  } | null>(null);
-  const [createdPatientCredentials, setCreatedPatientCredentials] = useState<{
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-  } | null>(null);
-
-  // Profile settings state
-  const [profileSettings, setProfileSettings] = useState({
-    firstName: user?.firstName || "",
-    lastName: user?.lastName || "",
-    email: user?.email || "",
-    phone: user?.phone || "",
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-
-  // Form states
-  const [newPatient, setNewPatient] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    dateOfBirth: "",
-    gender: "",
-  });
-
-  const [newStaff, setNewStaff] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    role: "doctor",
-    specialization: "",
-  });
 
   const fetchDashboardData = async () => {
     try {
       setIsLoading(true);
+      console.log("Starting fetchDashboardData");
       
       const [patientsRes, doctorsRes, appointmentsRes] = await Promise.all([
         adminApi.getPatients(),
@@ -96,10 +56,14 @@ const AdminDashboard = () => {
         adminApi.getAppointments(),
       ]);
 
+      console.log("API Responses:", { patientsRes, doctorsRes, appointmentsRes });
+
       if (!patientsRes.error && !doctorsRes.error && !appointmentsRes.error) {
         const patientsList = Array.isArray(patientsRes.data) ? patientsRes.data : [];
         const doctorsList = Array.isArray(doctorsRes.data) ? doctorsRes.data : [];
         const appointmentsList = Array.isArray(appointmentsRes.data) ? appointmentsRes.data : [];
+        
+        console.log("Data loaded successfully:", { patientsList, doctorsList, appointmentsList });
         
         setStats({
           totalPatients: patientsList.length,
@@ -109,6 +73,12 @@ const AdminDashboard = () => {
         });
 
         setAppointments(appointmentsList.slice(0, 10));
+      } else {
+        console.error("API errors:", {
+          patientsError: patientsRes.error,
+          doctorsError: doctorsRes.error,
+          appointmentsError: appointmentsRes.error,
+        });
       }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
@@ -126,249 +96,11 @@ const AdminDashboard = () => {
     fetchDashboardData();
   }, []);
 
-  const handleRegisterPatient = async () => {
-    // Validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!newPatient.firstName || !newPatient.lastName || !newPatient.email || !newPatient.phone) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!emailRegex.test(newPatient.email)) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid email address",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const phoneDigits = newPatient.phone.replace(/\D/g, '');
-    if (phoneDigits.length !== 10) {
-      toast({
-        title: "Error",
-        description: "Phone number must be exactly 10 digits",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const result = await patientApi.registerPatient(newPatient);
-      if (result.error) {
-        toast({
-          title: "Error",
-          description: result.error,
-          variant: "destructive",
-        });
-      } else {
-        const patientData = result.data as any;
-        setCreatedPatientCredentials({
-          firstName: patientData.firstName,
-          lastName: patientData.lastName,
-          email: patientData.email,
-          password: patientData.password,
-        });
-        toast({
-          title: "Success",
-          description: "Patient registered successfully! Share credentials with them.",
-        });
-        setNewPatient({ firstName: "", lastName: "", email: "", phone: "", dateOfBirth: "", gender: "" });
-        setIsRegisterPatientOpen(false);
-        fetchDashboardData();
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to register patient",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleAddStaff = async () => {
-    // Validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!newStaff.firstName || !newStaff.lastName || !newStaff.email || !newStaff.phone) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!emailRegex.test(newStaff.email)) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid email address",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const phoneDigits = newStaff.phone.replace(/\D/g, '');
-    if (phoneDigits.length !== 10) {
-      toast({
-        title: "Error",
-        description: "Phone number must be exactly 10 digits",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const result = await adminApi.createStaff({
-        firstName: newStaff.firstName,
-        lastName: newStaff.lastName,
-        email: newStaff.email,
-        phone: newStaff.phone,
-        role: newStaff.role,
-        password: newStaff.firstName ? undefined : undefined, // Let backend generate if empty
-        specialization: newStaff.specialization,
-      });
-
-      if (result.error) {
-        toast({
-          title: "Error",
-          description: result.error,
-          variant: "destructive",
-        });
-      } else {
-        // Store credentials for display
-        const staffData = result.data as any;
-        setCreatedStaffCredentials({
-          firstName: staffData.firstName,
-          lastName: staffData.lastName,
-          email: staffData.email,
-          password: staffData.password,
-          role: staffData.role,
-        });
-        
-        toast({
-          title: "Success",
-          description: "Staff member created successfully! Share credentials with them.",
-        });
-        
-        setNewStaff({ firstName: "", lastName: "", email: "", phone: "", role: "doctor", specialization: "" });
-        setIsAddStaffOpen(false);
-        fetchDashboardData();
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add staff",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleGenerateReport = () => {
     toast({
       title: "Report Generated",
       description: "System report downloaded successfully!",
     });
-  };
-
-  const handleSaveProfileSettings = async () => {
-    // Validation
-    if (!profileSettings.firstName || !profileSettings.lastName || !profileSettings.email) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(profileSettings.email)) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid email address",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Phone validation (if provided)
-    if (profileSettings.phone) {
-      const phoneDigits = profileSettings.phone.replace(/\D/g, '');
-      if (phoneDigits.length !== 10) {
-        toast({
-          title: "Error",
-          description: "Phone number must be exactly 10 digits",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
-    // Password match validation (if changing password)
-    if (profileSettings.newPassword) {
-      if (profileSettings.newPassword !== profileSettings.confirmPassword) {
-        toast({
-          title: "Error",
-          description: "Passwords do not match",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (profileSettings.newPassword.length < 6) {
-        toast({
-          title: "Error",
-          description: "Password must be at least 6 characters",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!profileSettings.currentPassword) {
-        toast({
-          title: "Error",
-          description: "Please enter your current password to change it",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
-    setIsSubmitting(true);
-    try {
-      // For now, show success - backend integration for profile update can be added
-      toast({
-        title: "Success",
-        description: "Profile updated successfully!",
-      });
-      setIsProfileSettingsOpen(false);
-      // Reset password fields
-      setProfileSettings({
-        ...profileSettings,
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update profile",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   const recentActivity = appointments.map((apt: any, idx: number) => ({
@@ -392,8 +124,8 @@ const AdminDashboard = () => {
       navItems={navItems} 
       role="administrator" 
       userName={user ? `${user.firstName} ${user.lastName}` : "Admin User"}
-      onProfileClick={() => setIsProfileSettingsOpen(true)}
-      onHelpClick={() => setIsSettingsOpen(true)}
+      onProfileClick={() => navigate('/dashboard/profile-settings')}
+      onHelpClick={() => navigate('/dashboard/help-support')}
     >
       <div className="space-y-6">
         {/* Header */}
@@ -410,87 +142,13 @@ const AdminDashboard = () => {
               <Download className="w-4 h-4 mr-2" />
               Download Report
             </Button>
-            <Dialog open={isAddStaffOpen} onOpenChange={setIsAddStaffOpen}>
-              <DialogTrigger asChild>
-                <Button variant="hero">
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Add Staff
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Add Staff Member</DialogTitle>
-                  <DialogDescription>Add a new doctor or staff member to the system</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>First Name*</Label>
-                      <Input
-                        placeholder="John"
-                        value={newStaff.firstName}
-                        onChange={(e) => setNewStaff({ ...newStaff, firstName: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label>Last Name*</Label>
-                      <Input
-                        placeholder="Doe"
-                        value={newStaff.lastName}
-                        onChange={(e) => setNewStaff({ ...newStaff, lastName: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Email*</Label>
-                    <Input
-                      type="email"
-                      placeholder="doctor@hospital.com"
-                      value={newStaff.email}
-                      onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label>Phone* (10 digits)</Label>
-                    <Input
-                      placeholder="9876543210"
-                      value={newStaff.phone}
-                      onChange={(e) => {
-                        const digits = e.target.value.replace(/\D/g, '');
-                        setNewStaff({ ...newStaff, phone: digits });
-                      }}
-                      maxLength={10}
-                    />
-                  </div>
-                  <div>
-                    <Label>Role*</Label>
-                    <Select value={newStaff.role} onValueChange={(value) => setNewStaff({ ...newStaff, role: value })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="doctor">Doctor</SelectItem>
-                        <SelectItem value="nurse">Nurse</SelectItem>
-                        <SelectItem value="receptionist">Receptionist</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {newStaff.role === 'doctor' && (
-                    <div>
-                      <Label>Specialization</Label>
-                      <Input
-                        placeholder="e.g., Cardiology"
-                        value={newStaff.specialization}
-                        onChange={(e) => setNewStaff({ ...newStaff, specialization: e.target.value })}
-                      />
-                    </div>
-                  )}
-                  <Button onClick={handleAddStaff} disabled={isSubmitting} className="w-full">
-                    {isSubmitting ? "Adding..." : "Add Staff Member"}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button 
+              variant="hero"
+              onClick={() => navigate('/dashboard/admin/add-staff')}
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              Add Staff
+            </Button>
           </div>
         </div>
 
@@ -578,167 +236,23 @@ const AdminDashboard = () => {
               <CardDescription>Frequently used operations</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Dialog open={isRegisterPatientOpen} onOpenChange={setIsRegisterPatientOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start gap-3 h-auto py-3">
-                    <UserPlus className="w-4 h-4 text-primary flex-shrink-0" />
-                    <span>Register New Patient</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Register New Patient</DialogTitle>
-                    <DialogDescription>Add a new patient to the system</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>First Name*</Label>
-                        <Input
-                          placeholder="John"
-                          value={newPatient.firstName}
-                          onChange={(e) => setNewPatient({ ...newPatient, firstName: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <Label>Last Name*</Label>
-                        <Input
-                          placeholder="Doe"
-                          value={newPatient.lastName}
-                          onChange={(e) => setNewPatient({ ...newPatient, lastName: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label>Email*</Label>
-                      <Input
-                        type="email"
-                        placeholder="patient@example.com"
-                        value={newPatient.email}
-                        onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label>Phone* (10 digits)</Label>
-                      <Input
-                        placeholder="9876543210"
-                        value={newPatient.phone}
-                        onChange={(e) => {
-                          const digits = e.target.value.replace(/\D/g, '');
-                          setNewPatient({ ...newPatient, phone: digits });
-                        }}
-                        maxLength={10}
-                      />
-                    </div>
-                    <div>
-                      <Label>Date of Birth</Label>
-                      <Input
-                        type="date"
-                        value={newPatient.dateOfBirth}
-                        onChange={(e) => setNewPatient({ ...newPatient, dateOfBirth: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label>Gender</Label>
-                      <Select value={newPatient.gender} onValueChange={(value) => setNewPatient({ ...newPatient, gender: value })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="male">Male</SelectItem>
-                          <SelectItem value="female">Female</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button onClick={handleRegisterPatient} disabled={isSubmitting} className="w-full">
-                      {isSubmitting ? "Registering..." : "Register Patient"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start gap-3 h-auto py-3"
+                onClick={() => navigate('/dashboard/admin/add-patient')}
+              >
+                <UserPlus className="w-4 h-4 text-primary flex-shrink-0" />
+                <span>Register New Patient</span>
+              </Button>
 
-              <Dialog open={isAddStaffOpen} onOpenChange={setIsAddStaffOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start gap-3 h-auto py-3">
-                    <Users className="w-4 h-4 text-success flex-shrink-0" />
-                    <span>Add Staff Member</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Add Staff Member</DialogTitle>
-                    <DialogDescription>Add a new doctor or staff member to the system</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>First Name*</Label>
-                        <Input
-                          placeholder="John"
-                          value={newStaff.firstName}
-                          onChange={(e) => setNewStaff({ ...newStaff, firstName: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <Label>Last Name*</Label>
-                        <Input
-                          placeholder="Doe"
-                          value={newStaff.lastName}
-                          onChange={(e) => setNewStaff({ ...newStaff, lastName: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label>Email*</Label>
-                      <Input
-                        type="email"
-                        placeholder="doctor@hospital.com"
-                        value={newStaff.email}
-                        onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label>Phone* (10 digits)</Label>
-                      <Input
-                        placeholder="9876543210"
-                        value={newStaff.phone}
-                        onChange={(e) => {
-                          const digits = e.target.value.replace(/\D/g, '');
-                          setNewStaff({ ...newStaff, phone: digits });
-                        }}
-                        maxLength={10}
-                      />
-                    </div>
-                    <div>
-                      <Label>Role*</Label>
-                      <Select value={newStaff.role} onValueChange={(value) => setNewStaff({ ...newStaff, role: value })}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="doctor">Doctor</SelectItem>
-                          <SelectItem value="nurse">Nurse</SelectItem>
-                          <SelectItem value="receptionist">Receptionist</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {newStaff.role === 'doctor' && (
-                      <div>
-                        <Label>Specialization</Label>
-                        <Input
-                          placeholder="e.g., Cardiology"
-                          value={newStaff.specialization}
-                          onChange={(e) => setNewStaff({ ...newStaff, specialization: e.target.value })}
-                        />
-                      </div>
-                    )}
-                    <Button onClick={handleAddStaff} disabled={isSubmitting} className="w-full">
-                      {isSubmitting ? "Adding..." : "Add Staff Member"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start gap-3 h-auto py-3"
+                onClick={() => navigate('/dashboard/admin/add-staff')}
+              >
+                <Users className="w-4 h-4 text-success flex-shrink-0" />
+                <span>Add Staff Member</span>
+              </Button>
 
               <Dialog open={isViewAppointmentsOpen} onOpenChange={setIsViewAppointmentsOpen}>
                 <DialogTrigger asChild>
@@ -878,214 +392,6 @@ const AdminDashboard = () => {
           </Card>
         </div>
 
-        {/* Staff Credentials Modal */}
-        {createdStaffCredentials && (
-          <Dialog open={!!createdStaffCredentials} onOpenChange={() => setCreatedStaffCredentials(null)}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Staff Member Created Successfully!</DialogTitle>
-                <DialogDescription>Share these credentials with the staff member</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="p-4 bg-secondary/50 rounded-lg border border-border">
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-muted-foreground text-sm">Name</Label>
-                      <p className="font-medium">{createdStaffCredentials.firstName} {createdStaffCredentials.lastName}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground text-sm">Role</Label>
-                      <p className="font-medium capitalize">{createdStaffCredentials.role}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground text-sm">Email (Login ID)</Label>
-                      <p className="font-mono bg-background p-2 rounded border text-sm break-all">
-                        {createdStaffCredentials.email}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground text-sm">Temporary Password</Label>
-                      <p className="font-mono bg-background p-2 rounded border text-sm">
-                        {createdStaffCredentials.password}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-amber-500/10 border border-amber-600/30 p-3 rounded-lg">
-                  <p className="text-sm text-amber-900 dark:text-amber-200">
-                    ⚠️ This is the only time these credentials will be shown. Please copy and securely share with the staff member. They can change their password after first login.
-                  </p>
-                </div>
-                <Button 
-                  className="w-full" 
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      `Email: ${createdStaffCredentials.email}\nPassword: ${createdStaffCredentials.password}`
-                    );
-                    toast({
-                      title: "Copied",
-                      description: "Credentials copied to clipboard",
-                    });
-                  }}
-                >
-                  Copy Credentials
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => setCreatedStaffCredentials(null)}
-                >
-                  Done
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
-
-        {/* Patient Credentials Modal */}
-        {createdPatientCredentials && (
-          <Dialog open={!!createdPatientCredentials} onOpenChange={() => setCreatedPatientCredentials(null)}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Patient Registered Successfully!</DialogTitle>
-                <DialogDescription>Share these credentials with the patient</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="p-4 bg-secondary/50 rounded-lg border border-border">
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-muted-foreground text-sm">Name</Label>
-                      <p className="font-medium">{createdPatientCredentials.firstName} {createdPatientCredentials.lastName}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground text-sm">Email (Login ID)</Label>
-                      <p className="font-mono bg-background p-2 rounded border text-sm break-all">
-                        {createdPatientCredentials.email}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground text-sm">Temporary Password</Label>
-                      <p className="font-mono bg-background p-2 rounded border text-sm">
-                        {createdPatientCredentials.password}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-blue-500/10 border border-blue-600/30 p-3 rounded-lg">
-                  <p className="text-sm text-blue-900 dark:text-blue-200">
-                    ℹ️ This is the only time these credentials will be shown. Please copy and securely share with the patient. They can change their password after first login.
-                  </p>
-                </div>
-                <Button 
-                  className="w-full" 
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      `Email: ${createdPatientCredentials.email}\nPassword: ${createdPatientCredentials.password}`
-                    );
-                    toast({
-                      title: "Copied",
-                      description: "Credentials copied to clipboard",
-                    });
-                  }}
-                >
-                  Copy Credentials
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => setCreatedPatientCredentials(null)}
-                >
-                  Done
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
-
-        {/* Admin Profile Settings Modal */}
-        <Dialog open={isProfileSettingsOpen} onOpenChange={setIsProfileSettingsOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Profile Settings</DialogTitle>
-              <DialogDescription>Update your profile information</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>First Name*</Label>
-                  <Input
-                    value={profileSettings.firstName}
-                    onChange={(e) => setProfileSettings({ ...profileSettings, firstName: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Last Name*</Label>
-                  <Input
-                    value={profileSettings.lastName}
-                    onChange={(e) => setProfileSettings({ ...profileSettings, lastName: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div>
-                <Label>Email*</Label>
-                <Input
-                  type="email"
-                  value={profileSettings.email}
-                  onChange={(e) => setProfileSettings({ ...profileSettings, email: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Phone (10 digits)</Label>
-                <Input
-                  value={profileSettings.phone}
-                  onChange={(e) => {
-                    const digits = e.target.value.replace(/\D/g, '');
-                    setProfileSettings({ ...profileSettings, phone: digits });
-                  }}
-                  maxLength={10}
-                />
-              </div>
-
-              {/* Change Password Section */}
-              <div className="border-t pt-4">
-                <h3 className="font-medium text-sm mb-3">Change Password (Optional)</h3>
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-sm">Current Password</Label>
-                    <Input
-                      type="password"
-                      placeholder="Enter your current password"
-                      value={profileSettings.currentPassword}
-                      onChange={(e) => setProfileSettings({ ...profileSettings, currentPassword: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm">New Password</Label>
-                    <Input
-                      type="password"
-                      placeholder="Enter new password"
-                      value={profileSettings.newPassword}
-                      onChange={(e) => setProfileSettings({ ...profileSettings, newPassword: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm">Confirm Password</Label>
-                    <Input
-                      type="password"
-                      placeholder="Confirm new password"
-                      value={profileSettings.confirmPassword}
-                      onChange={(e) => setProfileSettings({ ...profileSettings, confirmPassword: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Button onClick={handleSaveProfileSettings} disabled={isSubmitting} className="w-full">
-                {isSubmitting ? "Saving..." : "Save Changes"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </DashboardLayout>
   );

@@ -16,8 +16,6 @@ interface SimpleDashboardLayoutProps {
   role: string;
   userName: string;
   userId?: string;
-  onProfileClick?: () => void;
-  onHelpClick?: () => void;
 }
 
 const SimpleDashboardLayout = ({ 
@@ -25,8 +23,6 @@ const SimpleDashboardLayout = ({
   role, 
   userName, 
   userId,
-  onProfileClick,
-  onHelpClick,
 }: SimpleDashboardLayoutProps) => {
   const navigate = useNavigate();
 
@@ -86,8 +82,8 @@ const SimpleDashboardLayout = ({
                 )}
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onProfileClick}>Profile Settings</DropdownMenuItem>
-              <DropdownMenuItem onClick={onHelpClick}>Help & Support</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/dashboard/profile-settings')}>Profile Settings</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/dashboard/help-support')}>Help & Support</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="text-destructive">
                 <LogOut className="w-4 h-4 mr-2" />

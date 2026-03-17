@@ -11,6 +11,9 @@ import AdminDashboard from "./pages/dashboard/AdminDashboard";
 import DoctorDashboard from "./pages/dashboard/DoctorDashboard";
 import ReceptionistDashboard from "./pages/dashboard/ReceptionistDashboard";
 import ReceptionistScheduleAppointment from "./pages/dashboard/ReceptionistScheduleAppointment";
+import AddNewPatient from "./pages/dashboard/AddNewPatient";
+import AdminAddPatient from "./pages/dashboard/AdminAddPatient";
+import AdminAddStaff from "./pages/dashboard/AdminAddStaff";
 import PatientDashboard from "./pages/dashboard/PatientDashboard";
 import ProfileSettings from "./pages/dashboard/ProfileSettings";
 import HelpSupport from "./pages/dashboard/HelpSupport";
@@ -61,6 +64,30 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRoles={["receptionist"]}>
                   <ReceptionistScheduleAppointment />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/add-patient"
+              element={
+                <ProtectedRoute requiredRoles={["receptionist"]}>
+                  <AddNewPatient />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/admin/add-patient"
+              element={
+                <ProtectedRoute requiredRoles={["admin", "receptionist"]}>
+                  <AdminAddPatient />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/admin/add-staff"
+              element={
+                <ProtectedRoute requiredRoles={["admin"]}>
+                  <AdminAddStaff />
                 </ProtectedRoute>
               }
             />

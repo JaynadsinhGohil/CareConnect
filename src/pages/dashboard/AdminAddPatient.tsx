@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Users, Stethoscope, Mail, Check, AlertCircle, LayoutDashboard, FileText, Settings, ClipboardList, UserPlus } from "lucide-react";
+import { ArrowLeft, UserPlus, Users, Calendar, AlertCircle, Mail, Check, LayoutDashboard, ClipboardList, FileText, Settings } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,20 +9,19 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
-import { adminApi } from "@/lib/api";
+import { apiClient } from "@/lib/api";
 import { toast } from "sonner";
 
-const AdminAddStaff = () => {
+const AdminAddPatient = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registrationComplete, setRegistrationComplete] = useState(false);
-  const [staffCredentials, setStaffCredentials] = useState<{
+  const [patientCredentials, setPatientCredentials] = useState<{
     firstName: string;
     lastName: string;
     email: string;
     password: string;
-    role: string;
   } | null>(null);
 
   const navItems = [
@@ -39,8 +38,8 @@ const AdminAddStaff = () => {
     lastName: "",
     email: "",
     phone: "",
-    role: "doctor",
-    specialization: "",
+    dateOfBirth: "",
+    gender: "",
   });
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -66,10 +65,6 @@ const AdminAddStaff = () => {
       newErrors.phone = "Phone number is required";
     } else if (formData.phone.replace(/\D/g, "").length !== 10) {
       newErrors.phone = "Phone number must be exactly 10 digits";
-    }
-
-    if (formData.role === "doctor" && !formData.specialization.trim()) {
-      newErrors.specialization = "Specialization is required for doctors";
     }
 
     setErrors(newErrors);
@@ -102,17 +97,11 @@ const AdminAddStaff = () => {
     }
   };
 
-  const handleSelectChange = (name: string, value: string) => {
+  const handleSelectChange = (value: string) => {
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      gender: value,
     }));
-    if (errors[name]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: "",
-      }));
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,37 +115,36 @@ const AdminAddStaff = () => {
     setIsSubmitting(true);
 
     try {
-      console.log("Adding staff member:", formData);
+      console.log("Registering patient:", formData);
 
-      const response = await adminApi.createStaff({
+      const response = await apiClient.post('/patients/register', {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
         phone: formData.phone,
-        role: formData.role,
-        specialization: formData.role === "doctor" ? formData.specialization : undefined,
+        dateOfBirth: formData.dateOfBirth || undefined,
+        gender: formData.gender || undefined,
       });
 
-      console.log("Staff creation response:", response);
+      console.log("Registration response:", response);
 
       if (response.error) {
-        console.error("Staff creation error:", response.error);
+        console.error("Registration error:", response.error);
         toast.error(response.error);
       } else if (response.data) {
-        console.log("Staff creation successful:", response.data);
-        setStaffCredentials({
+        console.log("Registration successful:", response.data);
+        setPatientCredentials({
           firstName: formData.firstName,
           lastName: formData.lastName,
           email: formData.email,
           password: (response.data as any).password,
-          role: formData.role,
         });
         setRegistrationComplete(true);
-        toast.success("Staff member added successfully!");
+        toast.success("Patient registered successfully!");
       }
     } catch (error: any) {
       console.error("Catch error:", error);
-      toast.error("Failed to add staff member: " + error.message);
+      toast.error("Failed to register patient: " + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -168,12 +156,12 @@ const AdminAddStaff = () => {
       lastName: "",
       email: "",
       phone: "",
-      role: "doctor",
-      specialization: "",
+      dateOfBirth: "",
+      gender: "",
     });
     setErrors({});
     setRegistrationComplete(false);
-    setStaffCredentials(null);
+    setPatientCredentials(null);
   };
 
   const handleNavigateBack = () => {
@@ -184,16 +172,7 @@ const AdminAddStaff = () => {
     }
   };
 
-  const getRoleIcon = () => {
-    switch (formData.role) {
-      case "doctor":
-        return <Stethoscope className="w-5 h-5" />;
-      default:
-        return <Users className="w-5 h-5" />;
-    }
-  };
-
-  if (registrationComplete && staffCredentials) {
+  if (registrationComplete && patientCredentials) {
     return (
       <DashboardLayout
         navItems={navItems}
@@ -214,8 +193,8 @@ const AdminAddStaff = () => {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Staff Member Added Successfully!</h1>
-              <p className="text-muted-foreground">Share these credentials with the staff member</p>
+              <h1 className="text-2xl font-bold text-foreground">Patient Registered Successfully!</h1>
+              <p className="text-muted-foreground">Share these credentials with the patient</p>
             </div>
           </div>
 
@@ -228,11 +207,9 @@ const AdminAddStaff = () => {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-foreground mb-2">
-                    {staffCredentials.firstName} {staffCredentials.lastName}
+                    {patientCredentials.firstName} {patientCredentials.lastName}
                   </h2>
-                  <p className="text-muted-foreground capitalize">
-                    {staffCredentials.role === "doctor" ? "Dr. " : ""}{staffCredentials.role} has been successfully added
-                  </p>
+                  <p className="text-muted-foreground">has been successfully registered in the system</p>
                 </div>
               </div>
             </CardContent>
@@ -245,21 +222,21 @@ const AdminAddStaff = () => {
                 <Mail className="w-5 h-5" />
                 Login Credentials
               </CardTitle>
-              <CardDescription>Share these credentials with the staff member securely</CardDescription>
+              <CardDescription>Share these credentials with the patient securely</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-muted-foreground">Email (Login ID)</Label>
                   <div className="p-4 bg-secondary/50 rounded-lg border border-border">
-                    <p className="font-mono text-sm font-medium break-all">{staffCredentials.email}</p>
+                    <p className="font-mono text-sm font-medium break-all">{patientCredentials.email}</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-muted-foreground">Temporary Password</Label>
                   <div className="p-4 bg-secondary/50 rounded-lg border border-border">
-                    <p className="font-mono text-sm font-medium tracking-wider">{staffCredentials.password}</p>
+                    <p className="font-mono text-sm font-medium tracking-wider">{patientCredentials.password}</p>
                   </div>
                 </div>
               </div>
@@ -268,7 +245,7 @@ const AdminAddStaff = () => {
               <Alert className="bg-warning/10 border-warning/20">
                 <AlertCircle className="h-4 w-4 text-warning" />
                 <AlertDescription className="text-warning ml-2">
-                  <span className="font-medium">Important:</span> This is the only time these credentials will be displayed. Please copy and securely share with the staff member. They should change their password after first login.
+                  <span className="font-medium">Important:</span> This is the only time these credentials will be displayed. Please copy and securely share with the patient. They should change their password after first login.
                 </AlertDescription>
               </Alert>
 
@@ -278,7 +255,7 @@ const AdminAddStaff = () => {
                   className="flex-1"
                   onClick={() => {
                     navigator.clipboard.writeText(
-                      `Email: ${staffCredentials.email}\nPassword: ${staffCredentials.password}`
+                      `Email: ${patientCredentials.email}\nPassword: ${patientCredentials.password}`
                     );
                     toast.success("Credentials copied to clipboard");
                   }}
@@ -321,8 +298,8 @@ const AdminAddStaff = () => {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Add Staff Member</h1>
-            <p className="text-muted-foreground">Register a new doctor, nurse, or staff member</p>
+            <h1 className="text-2xl font-bold text-foreground">Register Patient</h1>
+            <p className="text-muted-foreground">Add a new patient to the CareConnect system</p>
           </div>
         </div>
 
@@ -335,7 +312,7 @@ const AdminAddStaff = () => {
                   <Users className="w-5 h-5" />
                   Personal Information
                 </CardTitle>
-                <CardDescription>Enter staff member's personal details</CardDescription>
+                <CardDescription>Enter the patient's personal details</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Name Row */}
@@ -384,7 +361,7 @@ const AdminAddStaff = () => {
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="doctor@hospital.com"
+                    placeholder="john.doe@example.com"
                     value={formData.email}
                     onChange={handleInputChange}
                     className={errors.email ? "border-destructive" : ""}
@@ -421,56 +398,47 @@ const AdminAddStaff = () => {
             </Card>
           </div>
 
-          {/* Role & Specialization */}
+          {/* Additional Information */}
           <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  {getRoleIcon()}
-                  Role & Details
+                  <Calendar className="w-5 h-5" />
+                  Additional Information
                 </CardTitle>
-                <CardDescription>Assign staff role and qualifications</CardDescription>
+                <CardDescription>Complete patient profile</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Role */}
+                {/* Date of Birth */}
                 <div className="space-y-2">
-                  <Label htmlFor="role" className="font-medium">
-                    Role <span className="text-destructive">*</span>
+                  <Label htmlFor="dob" className="font-medium">
+                    Date of Birth
                   </Label>
-                  <Select 
-                    value={formData.role} 
-                    onValueChange={(value) => handleSelectChange("role", value)}
-                  >
-                    <SelectTrigger id="role">
-                      <SelectValue />
+                  <Input
+                    id="dob"
+                    name="dateOfBirth"
+                    type="date"
+                    value={formData.dateOfBirth}
+                    onChange={handleInputChange}
+                  />
+                </div>
+
+                {/* Gender */}
+                <div className="space-y-2">
+                  <Label htmlFor="gender" className="font-medium">
+                    Gender
+                  </Label>
+                  <Select value={formData.gender} onValueChange={handleSelectChange}>
+                    <SelectTrigger id="gender">
+                      <SelectValue placeholder="Select gender" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="doctor">Doctor</SelectItem>
-                      <SelectItem value="nurse">Nurse</SelectItem>
-                      <SelectItem value="receptionist">Receptionist</SelectItem>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-
-                {/* Specialization (only for doctors) */}
-                {formData.role === "doctor" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="specialization" className="font-medium">
-                      Specialization <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="specialization"
-                      name="specialization"
-                      placeholder="e.g., Cardiology"
-                      value={formData.specialization}
-                      onChange={handleInputChange}
-                      className={errors.specialization ? "border-destructive" : ""}
-                    />
-                    {errors.specialization && (
-                      <p className="text-xs text-destructive">{errors.specialization}</p>
-                    )}
-                  </div>
-                )}
 
                 {/* Info Box */}
                 <div className="mt-8 p-4 bg-primary/5 border border-primary/20 rounded-lg">
@@ -479,7 +447,7 @@ const AdminAddStaff = () => {
                     <div>
                       <p className="text-sm font-medium text-primary">Secure Login</p>
                       <p className="text-xs text-primary/80 mt-1">
-                        A secure password will be auto-generated and shared with the staff member after registration.
+                        A secure password will be auto-generated and shared with the patient after registration.
                       </p>
                     </div>
                   </div>
@@ -495,12 +463,12 @@ const AdminAddStaff = () => {
                     {isSubmitting ? (
                       <>
                         <Check className="w-4 h-4 mr-2" />
-                        Adding Staff...
+                        Registering Patient...
                       </>
                     ) : (
                       <>
-                        <Users className="w-4 h-4 mr-2" />
-                        Add Staff Member
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        Register Patient
                       </>
                     )}
                   </Button>
@@ -523,4 +491,4 @@ const AdminAddStaff = () => {
   );
 };
 
-export default AdminAddStaff;
+export default AdminAddPatient;

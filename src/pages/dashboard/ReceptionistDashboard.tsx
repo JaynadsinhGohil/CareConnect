@@ -32,27 +32,7 @@ const ReceptionistDashboard = () => {
   const [doctors, setDoctors] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isNewPatientOpen, setIsNewPatientOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [createdPatientCredentials, setCreatedPatientCredentials] = useState<{
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-  } | null>(null);
-
-  // New Patient Form State
-  const [newPatient, setNewPatient] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    dateOfBirth: "",
-    gender: "",
-  });
 
 
 
@@ -105,91 +85,6 @@ const ReceptionistDashboard = () => {
     fetchData();
   }, []);
 
-  const handleNewPatient = async () => {
-    // Validation: Check required fields
-    if (!newPatient.firstName || !newPatient.lastName || !newPatient.email || !newPatient.phone) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validation: Email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newPatient.email)) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid email address (e.g., patient@example.com)",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validation: Phone number (10 digits)
-    const phoneDigits = newPatient.phone.replace(/\D/g, '');
-    if (phoneDigits.length !== 10) {
-      toast({
-        title: "Error",
-        description: "Phone number must be exactly 10 digits",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const result = await patientApi.registerPatient({
-        firstName: newPatient.firstName,
-        lastName: newPatient.lastName,
-        email: newPatient.email,
-        phone: newPatient.phone,
-        dateOfBirth: newPatient.dateOfBirth,
-        gender: newPatient.gender,
-      });
-
-      if (result.error) {
-        toast({
-          title: "Error",
-          description: result.error,
-          variant: "destructive",
-        });
-      } else {
-        const patientData = result.data as any;
-        setCreatedPatientCredentials({
-          firstName: patientData.firstName,
-          lastName: patientData.lastName,
-          email: patientData.email,
-          password: patientData.password,
-        });
-        toast({
-          title: "Success",
-          description: "Patient registered successfully! Share credentials with them.",
-        });
-        setNewPatient({ firstName: "", lastName: "", email: "", phone: "", dateOfBirth: "", gender: "" });
-        setIsNewPatientOpen(false);
-        // Auto-open schedule dialog for easy appointment creation
-        setTimeout(() => {
-          fetchData();
-          // Set the newly registered patient (last one) for scheduling
-          const timer = setTimeout(() => setIsScheduleOpen(true), 500);
-          return () => clearTimeout(timer);
-        }, 100);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to register patient",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-
-
   const handleCheckIn = async (appointmentId: string) => {
     try {
       const result = await adminApi.updateAppointmentStatus(appointmentId, "completed");
@@ -234,8 +129,6 @@ const ReceptionistDashboard = () => {
       role="receptionist" 
       userName={user?.firstName || "Receptionist"} 
       userId={user?.id?.substring(0, 8) || "RCP-00"}
-      onProfileClick={() => setIsProfileOpen(true)}
-      onHelpClick={() => setIsHelpOpen(true)}
     >
       <div className="space-y-6 max-w-7xl mx-auto">
         {/* Header */}
@@ -250,91 +143,13 @@ const ReceptionistDashboard = () => {
               Schedule
             </Button>
 
-            <Dialog open={isNewPatientOpen} onOpenChange={setIsNewPatientOpen}>
-              <DialogTrigger asChild>
-                <Button variant="hero">
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  New Patient
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Register New Patient</DialogTitle>
-                  <DialogDescription>Add a new patient to the system</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="firstName">First Name*</Label>
-                      <Input
-                        placeholder="First name"
-                        value={newPatient.firstName}
-                        onChange={(e) => setNewPatient({ ...newPatient, firstName: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="lastName">Last Name*</Label>
-                      <Input
-                        placeholder="Last name"
-                        value={newPatient.lastName}
-                        onChange={(e) => setNewPatient({ ...newPatient, lastName: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="email">Email*</Label>
-                    <Input
-                      type="email"
-                      placeholder="patient@example.com"
-                      value={newPatient.email}
-                      onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
-                    />
-                    {newPatient.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newPatient.email) && (
-                      <p className="text-xs text-destructive mt-1">Invalid email format</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="phone">Phone* (10 digits)</Label>
-                    <Input
-                      placeholder="9876543210"
-                      value={newPatient.phone}
-                      onChange={(e) => {
-                        const digits = e.target.value.replace(/\D/g, '');
-                        setNewPatient({ ...newPatient, phone: digits });
-                      }}
-                      maxLength={10}
-                    />
-                    {newPatient.phone && newPatient.phone.replace(/\D/g, '').length !== 10 && (
-                      <p className="text-xs text-destructive mt-1">Phone must be 10 digits ({newPatient.phone.replace(/\D/g, '').length | 0}/10)</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="dob">Date of Birth</Label>
-                    <Input
-                      type="date"
-                      value={newPatient.dateOfBirth}
-                      onChange={(e) => setNewPatient({ ...newPatient, dateOfBirth: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="gender">Gender</Label>
-                    <Select value={newPatient.gender} onValueChange={(value) => setNewPatient({ ...newPatient, gender: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select gender" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button onClick={handleNewPatient} disabled={isSubmitting} className="w-full">
-                    {isSubmitting ? "Registering..." : "Register Patient"}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button 
+              variant="hero"
+              onClick={() => navigate('/dashboard/add-patient')}
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              New Patient
+            </Button>
           </div>
         </div>
 
@@ -503,90 +318,13 @@ const ReceptionistDashboard = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Recent Patients</CardTitle>
-                <Dialog open={isNewPatientOpen} onOpenChange={setIsNewPatientOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Register New Patient</DialogTitle>
-                      <DialogDescription>Add a new patient to the system</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="firstName">First Name*</Label>
-                          <Input
-                            placeholder="First name"
-                            value={newPatient.firstName}
-                            onChange={(e) => setNewPatient({ ...newPatient, firstName: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="lastName">Last Name*</Label>
-                          <Input
-                            placeholder="Last name"
-                            value={newPatient.lastName}
-                            onChange={(e) => setNewPatient({ ...newPatient, lastName: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label htmlFor="email">Email*</Label>
-                        <Input
-                          type="email"
-                          placeholder="patient@example.com"
-                          value={newPatient.email}
-                          onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
-                        />
-                        {newPatient.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newPatient.email) && (
-                          <p className="text-xs text-destructive mt-1">Invalid email format</p>
-                        )}
-                      </div>
-                      <div>
-                        <Label htmlFor="phone">Phone* (10 digits)</Label>
-                        <Input
-                          placeholder="9876543210"
-                          value={newPatient.phone}
-                          onChange={(e) => {
-                            const digits = e.target.value.replace(/\D/g, '');
-                            setNewPatient({ ...newPatient, phone: digits });
-                          }}
-                          maxLength={10}
-                        />
-                        {newPatient.phone && newPatient.phone.replace(/\D/g, '').length !== 10 && (
-                          <p className="text-xs text-destructive mt-1">Phone must be 10 digits ({newPatient.phone.replace(/\D/g, '').length | 0}/10)</p>
-                        )}
-                      </div>
-                      <div>
-                        <Label htmlFor="dob">Date of Birth</Label>
-                        <Input
-                          type="date"
-                          value={newPatient.dateOfBirth}
-                          onChange={(e) => setNewPatient({ ...newPatient, dateOfBirth: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="gender">Gender</Label>
-                        <Select value={newPatient.gender} onValueChange={(value) => setNewPatient({ ...newPatient, gender: value })}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select gender" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="male">Male</SelectItem>
-                            <SelectItem value="female">Female</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button onClick={handleNewPatient} disabled={isSubmitting} className="w-full">
-                        {isSubmitting ? "Registering..." : "Register Patient"}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => navigate('/dashboard/add-patient')}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -611,91 +349,14 @@ const ReceptionistDashboard = () => {
                       </div>
                     </div>
                   ))}
-                  <Dialog open={isNewPatientOpen} onOpenChange={setIsNewPatientOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full">
-                        <UserPlus className="w-4 h-4 mr-2" />
-                        Register New Patient
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Register New Patient</DialogTitle>
-                        <DialogDescription>Add a new patient to the system</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="firstName">First Name*</Label>
-                            <Input
-                              placeholder="First name"
-                              value={newPatient.firstName}
-                              onChange={(e) => setNewPatient({ ...newPatient, firstName: e.target.value })}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="lastName">Last Name*</Label>
-                            <Input
-                              placeholder="Last name"
-                              value={newPatient.lastName}
-                              onChange={(e) => setNewPatient({ ...newPatient, lastName: e.target.value })}
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label htmlFor="email">Email*</Label>
-                          <Input
-                            type="email"
-                            placeholder="patient@example.com"
-                            value={newPatient.email}
-                            onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
-                          />
-                          {newPatient.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newPatient.email) && (
-                            <p className="text-xs text-destructive mt-1">Invalid email format</p>
-                          )}
-                        </div>
-                        <div>
-                          <Label htmlFor="phone">Phone* (10 digits)</Label>
-                          <Input
-                            placeholder="9876543210"
-                            value={newPatient.phone}
-                            onChange={(e) => {
-                              const digits = e.target.value.replace(/\D/g, '');
-                              setNewPatient({ ...newPatient, phone: digits });
-                            }}
-                            maxLength={10}
-                          />
-                          {newPatient.phone && newPatient.phone.replace(/\D/g, '').length !== 10 && (
-                            <p className="text-xs text-destructive mt-1">Phone must be 10 digits ({newPatient.phone.replace(/\D/g, '').length | 0}/10)</p>
-                          )}
-                        </div>
-                        <div>
-                          <Label htmlFor="dob">Date of Birth</Label>
-                          <Input
-                            type="date"
-                            value={newPatient.dateOfBirth}
-                            onChange={(e) => setNewPatient({ ...newPatient, dateOfBirth: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="gender">Gender</Label>
-                          <Select value={newPatient.gender} onValueChange={(value) => setNewPatient({ ...newPatient, gender: value })}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select gender" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="male">Male</SelectItem>
-                              <SelectItem value="female">Female</SelectItem>
-                              <SelectItem value="other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <Button onClick={handleNewPatient} disabled={isSubmitting} className="w-full">
-                          {isSubmitting ? "Registering..." : "Register Patient"}
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => navigate('/dashboard/add-patient')}
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Register New Patient
+                  </Button>
                 </>
               ) : (
                 <p className="text-muted-foreground">No patients</p>
@@ -704,168 +365,7 @@ const ReceptionistDashboard = () => {
           </Card>
         </div>
 
-        {/* Profile Settings Modal */}
-        <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Profile Settings</DialogTitle>
-              <DialogDescription>Manage your account information</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-lg">
-                    {user?.firstName?.[0]}{user?.lastName?.[0]}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-semibold">{user?.firstName} {user?.lastName}</p>
-                  <p className="text-sm text-muted-foreground capitalize">{user?.role}</p>
-                  <p className="text-xs text-muted-foreground mt-1">ID: {user?.id?.substring(0, 12)}</p>
-                </div>
-              </div>
-              
-              <div className="space-y-4 bg-secondary/50 p-4 rounded-lg">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Email</Label>
-                  <p className="font-medium">{user?.email}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Role</Label>
-                  <p className="font-medium capitalize">{user?.role}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Account Status</Label>
-                  <Badge className="bg-success/10 text-success mt-2">Active</Badge>
-                </div>
-              </div>
-
-              <div className="space-y-2 border-t pt-4">
-                <Button variant="outline" className="w-full">Change Password</Button>
-                <Button variant="outline" className="w-full">Two-Factor Authentication</Button>
-              </div>
-
-              <Button 
-                variant="ghost" 
-                className="w-full text-destructive"
-                onClick={() => setIsProfileOpen(false)}
-              >
-                Close
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Help & Support Modal */}
-        <Dialog open={isHelpOpen} onOpenChange={setIsHelpOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Help & Support</DialogTitle>
-              <DialogDescription>Get help with CareConnect</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-3">
-                <h3 className="font-semibold">Frequently Asked Questions</h3>
-                
-                <details className="border rounded-lg p-3 cursor-pointer hover:bg-secondary/50">
-                  <summary className="font-medium">How do I register a new patient?</summary>
-                  <p className="text-sm text-muted-foreground mt-2">Click the "New Patient" button and fill in the patient's information including name, email, phone number, and other details.</p>
-                </details>
-
-                <details className="border rounded-lg p-3 cursor-pointer hover:bg-secondary/50">
-                  <summary className="font-medium">How do I schedule an appointment?</summary>
-                  <p className="text-sm text-muted-foreground mt-2">Use the "Schedule" button to create a new appointment. Select the patient, doctor, date, and time, then click schedule.</p>
-                </details>
-
-                <details className="border rounded-lg p-3 cursor-pointer hover:bg-secondary/50">
-                  <summary className="font-medium">How do I check in a patient?</summary>
-                  <p className="text-sm text-muted-foreground mt-2">In the "Upcoming Appointments" section, click the "Check-in" button next to the patient's appointment.</p>
-                </details>
-
-                <details className="border rounded-lg p-3 cursor-pointer hover:bg-secondary/50">
-                  <summary className="font-medium">How do I search for a patient?</summary>
-                  <p className="text-sm text-muted-foreground mt-2">Use the search bar at the top to find patients by name, ID, or phone number. Click "Search Patient" to view results.</p>
-                </details>
-              </div>
-
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  <span className="font-medium">Need more help?</span>
-                  <p className="text-sm">Contact support@careconnect.com or call 1-800-CARE-NOW</p>
-                </AlertDescription>
-              </Alert>
-
-              <Button 
-                variant="ghost" 
-                className="w-full"
-                onClick={() => setIsHelpOpen(false)}
-              >
-                Close
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Patient Credentials Modal */}
-        {createdPatientCredentials && (
-          <Dialog open={!!createdPatientCredentials} onOpenChange={() => setCreatedPatientCredentials(null)}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Patient Registered Successfully!</DialogTitle>
-                <DialogDescription>Share these credentials with the patient</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="p-4 bg-secondary/50 rounded-lg border border-border">
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-muted-foreground text-sm">Name</Label>
-                      <p className="font-medium">{createdPatientCredentials.firstName} {createdPatientCredentials.lastName}</p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground text-sm">Email (Login ID)</Label>
-                      <p className="font-mono bg-background p-2 rounded border text-sm break-all">
-                        {createdPatientCredentials.email}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground text-sm">Temporary Password</Label>
-                      <p className="font-mono bg-background p-2 rounded border text-sm">
-                        {createdPatientCredentials.password}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-blue-500/10 border border-blue-600/30 p-3 rounded-lg">
-                  <p className="text-sm text-blue-900 dark:text-blue-200">
-                    ℹ️ This is the only time these credentials will be shown. Please copy and securely share with the patient. They can change their password after first login.
-                  </p>
-                </div>
-                <Button 
-                  className="w-full" 
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      `Email: ${createdPatientCredentials.email}\nPassword: ${createdPatientCredentials.password}`
-                    );
-                    toast({
-                      title: "Copied",
-                      description: "Credentials copied to clipboard",
-                    });
-                  }}
-                >
-                  Copy Credentials
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => setCreatedPatientCredentials(null)}
-                >
-                  Done
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+        {/* End of Content */}
       </div>
     </SimpleDashboardLayout>
   );
