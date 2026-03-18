@@ -14,12 +14,12 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware - CORS configured for production and development
-const allowedOrigins = [
+const allowedOrigins: (string | RegExp)[] = [
   'http://localhost:8080',
   'http://localhost:3000',
   'http://localhost:5173',
-  process.env.FRONTEND_URL, // Set in production (e.g., Vercel deployed URL)
-].filter(Boolean);
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+];
 
 app.use(cors({
   origin: allowedOrigins,
