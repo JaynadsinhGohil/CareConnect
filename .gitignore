@@ -9,7 +9,7 @@ bun.lockb
 .env.example
 .env.local
 .env.*.local
-
+.env.local
 # Build outputs
 dist/
 build/
