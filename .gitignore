@@ -1,4 +1,9 @@
 node_modules/
+.env
+.env.local
+.env.*.local
+dist/
+build/
 CODE_CHANGES_DETAIL.md
 DEPLOYMENT_READINESS.md
 IMPLEMENTATION_VERIFICATION.md
