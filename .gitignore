@@ -4,6 +4,10 @@ node_modules/
 .env.*.local
 dist/
 build/
+*.passwords.txt
+SGP*.txt
+secrets/
+credentials/
 CODE_CHANGES_DETAIL.md
 DEPLOYMENT_READINESS.md
 IMPLEMENTATION_VERIFICATION.md

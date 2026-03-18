@@ -82,16 +82,18 @@ A modern, full-stack healthcare management system with role-based access control
 ### 2. Environment Setup
 
 **Backend (.env):**
-```env
-PORT=5000
-DATABASE_URL=postgresql://postgres:password@localhost:5432/careconnect
-JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
-JWT_EXPIRE=7d
-NODE_ENV=development
-BCRYPT_ROUNDS=10
-```
+
+Copy `backend/.env.example` to `backend/.env` and update the values:
+
+- `PORT` - Server port (default: 5000)
+- `DATABASE_URL` - PostgreSQL connection string
+- `JWT_SECRET` - Secret key for JWT tokens (use a strong, random value in production)
+- `JWT_EXPIRE` - JWT expiration time (default: 7d)
+- `NODE_ENV` - Environment (development/production)
+- `BCRYPT_ROUNDS` - Password hashing rounds (default: 10)
 
 **Frontend (.env.local):**
+
 ```env
 VITE_API_URL=http://localhost:5000/api
 ```
