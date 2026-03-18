@@ -76,26 +76,32 @@ A modern, full-stack healthcare management system with role-based access control
 ### 1. Prerequisites
 
 - **Node.js 18+** - [Download](https://nodejs.org/)
-- **PostgreSQL 13+** - [Download](https://www.postgresql.org/download/)
+- **Supabase Account** - [Free tier](https://supabase.com) (PostgreSQL hosted database)
 - **npm** or **yarn** - Comes with Node.js
 
 ### 2. Environment Setup
 
 **Backend (.env):**
 
-Copy `backend/.env.example` to `backend/.env` and update the values:
+Copy `backend/.env.example` to `backend/.env` and configure:
 
-- `PORT` - Server port (default: 5000)
-- `DATABASE_URL` - PostgreSQL connection string
-- `JWT_SECRET` - Secret key for JWT tokens (use a strong, random value in production)
-- `JWT_EXPIRE` - JWT expiration time (default: 7d)
-- `NODE_ENV` - Environment (development/production)
-- `BCRYPT_ROUNDS` - Password hashing rounds (default: 10)
+```env
+# Get DATABASE_URL from: Supabase Dashboard → Settings → Database → Connection String
+DATABASE_URL=postgresql://postgres:[PASSWORD]@db.jsucvnqdjbkydkgwmdrc.supabase.co:5432/postgres
+PORT=5000
+JWT_SECRET=your_super_secret_key_min_32_characters
+JWT_EXPIRE=7d
+NODE_ENV=development
+BCRYPT_ROUNDS=10
+FRONTEND_URL=http://localhost:8080
+```
 
 **Frontend (.env.local):**
 
 ```env
 VITE_API_URL=http://localhost:5000/api
+VITE_SUPABASE_URL=https://jsucvnqdjbkydkgwmdrc.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_T1uC3Fyucu5MAtUADzP4kg_vcWio7I4
 ```
 
 ### 3. Install Dependencies
@@ -245,30 +251,35 @@ All endpoints are prefixed with `/api`
 - `GET /admin/medical-records` - List records
 - `GET /admin/prescriptions` - List prescriptions
 
-## 🚢 Deployment
+## 🚢 Production Deployment
 
-### Production Deployment
+**For complete, step-by-step deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md)**
 
-See [PRODUCTION_SETUP.md](./PRODUCTION_SETUP.md) for detailed setup instructions.
+### Quick Overview
+- **Database**: Supabase PostgreSQL (free tier available)
+- **Frontend**: Vercel (auto-deploys from Git)
+- **Backend**: Render.com or Railway (free tier for testing)
+- **Auth**: JWT (no external auth service needed)
 
-**Quick deployment with Vercel (Frontend) + Heroku (Backend):**
+### Deployment Checklist
+1. ✅ Database setup: Supabase project created
+2. ✅ Environment variables: Configured in `.env.example`
+3. ☐ Local testing: Backend + Frontend running locally with Supabase
+4. ☐ Backend deployment: Push to Render with `DATABASE_URL` env var
+5. ☐ Frontend deployment: Import to Vercel with `VITE_API_URL` env var
+6. ☐ CORS configuration: Update backend `FRONTEND_URL` after Vercel deployment
+7. ☐ Live testing: Verify all features work on deployed site
 
-```bash
-# Frontend
-vercel deploy
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
 
-# Backend
-heroku create your-app-name
-heroku addons:create heroku-postgresql
-git push heroku main
-```
+---
 
 ## 📝 Documentation
 
-- [Production Setup Guide](./PRODUCTION_SETUP.md) - Deploy to production
-- [Testing Guide](./TESTING_GUIDE.md) - Complete testing checklist
-- [Deployment Readiness](./DEPLOYMENT_READINESS.md) - Pre-launch checklist
-- [Setup Instructions](./SETUP_INSTRUCTIONS.md) - Detailed setup steps
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete deployment guide (Supabase + Vercel + Render)
+- **[VERCEL_DEPLOYMENT_GUIDE.md](./VERCEL_DEPLOYMENT_GUIDE.md)** - Detailed Vercel setup
+
+---
 
 ## 🧪 Testing
 
@@ -286,12 +297,26 @@ npm run test
 
 ## 🐛 Troubleshooting
 
-### Database Connection Failed
-```
-Check DATABASE_URL in backend/.env
-Ensure PostgreSQL is running
-Verify database name is correct
-```
+### Backend won't connect to Supabase
+- Verify `DATABASE_URL` in `backend/.env` is correct
+- Check Supabase project is active
+- Ensure database password is correct
+- View backend logs for detailed errors
+
+### Frontend shows CORS errors
+- Check `VITE_API_URL` points to backend URL
+- Ensure backend has `FRONTEND_URL` environment variable set
+- Clear browser cache and try again
+
+### Can't login/register
+- Check backend is running
+- Verify user data is being saved in Supabase Studio
+- Check backend logs for validation errors
+
+### Data not saving
+- Verify connection to Supabase in backend logs
+- Check tables exist in Supabase Studio
+- Ensure `DATABASE_URL` is correct
 
 ### API Not Responding
 ```

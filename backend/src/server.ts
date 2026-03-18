@@ -13,13 +13,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// Middleware - CORS configured for production and development
+const allowedOrigins = [
+  'http://localhost:8080',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  process.env.FRONTEND_URL, // Set in production (e.g., Vercel deployed URL)
+].filter(Boolean);
+
 app.use(cors({
-  origin: [
-    'https://care-connect-9l9v.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:5173'
-  ],
+  origin: allowedOrigins,
   credentials: true
 }));
 app.use(express.json());
