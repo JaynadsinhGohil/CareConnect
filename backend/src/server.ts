@@ -18,6 +18,7 @@ const allowedOrigins: (string | RegExp)[] = [
   'http://localhost:8080',
   'http://localhost:3000',
   'http://localhost:5173',
+  /^https:\/\/.*\.vercel\.app$/, // Accept all Vercel deployment URLs
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
 ];
 
