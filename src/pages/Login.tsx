@@ -3,34 +3,17 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Heart, Mail, Lock, ArrowRight, Shield, Stethoscope, UserCog, User, Eye, EyeOff } from "lucide-react";
+import { Heart, Mail, Lock, ArrowRight, Shield, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-
-type UserRole = "admin" | "doctor" | "receptionist" | "patient";
-
-const roles = [
-  { id: "admin" as UserRole, label: "Admin", icon: Shield, description: "System administration" },
-  { id: "doctor" as UserRole, label: "Doctor", icon: Stethoscope, description: "Clinical staff" },
-  { id: "receptionist" as UserRole, label: "Reception", icon: UserCog, description: "Front desk" },
-  { id: "patient" as UserRole, label: "Patient", icon: User, description: "Patient portal" },
-];
 
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [selectedRole, setSelectedRole] = useState<UserRole>("patient");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
-  const handleRoleChange = (role: UserRole) => {
-    setSelectedRole(role);
-    // Clear fields when switching roles
-    setEmail("");
-    setPassword("");
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,20 +27,16 @@ const Login = () => {
     try {
       const result = await login(email, password);
       
-      // Role-based validation: check if logged-in user's role matches selected role
-      if (result.user.role !== selectedRole) {
-        toast.error(`Invalid credentials for ${selectedRole}. Please check your email and password.`);
-        setIsLoading(false);
-        return;
-      }
+      // Auto-redirect based on user's role detected from backend
+      const userRole = result.user.role;
       
-      if (result.user.role === "admin") {
+      if (userRole === "admin") {
         navigate("/dashboard/admin");
-      } else if (result.user.role === "doctor") {
+      } else if (userRole === "doctor") {
         navigate("/dashboard/doctor");
-      } else if (result.user.role === "receptionist") {
+      } else if (userRole === "receptionist") {
         navigate("/dashboard/receptionist");
-      } else if (result.user.role === "patient") {
+      } else if (userRole === "patient") {
         navigate("/dashboard/patient");
       }
       
@@ -66,19 +45,6 @@ const Login = () => {
       toast.error(error.message || "Login failed. Please try again.");
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const getLoginHint = () => {
-    switch (selectedRole) {
-      case "admin":
-        return "Use your admin email and password";
-      case "doctor":
-        return "Use your doctor email and password";
-      case "receptionist":
-        return "Use your staff email and password";
-      case "patient":
-        return "Use your email and password";
     }
   };
 
@@ -149,32 +115,7 @@ const Login = () => {
 
           <div className="text-center lg:text-left">
             <h2 className="text-3xl font-bold text-foreground">Sign in</h2>
-            <p className="text-muted-foreground mt-2">{getLoginHint()}</p>
-          </div>
-
-          {/* Role Selection */}
-          <div className="grid grid-cols-2 gap-3">
-            {roles.map((role) => {
-              const Icon = role.icon;
-              return (
-                <button
-                  key={role.id}
-                  type="button"
-                  onClick={() => handleRoleChange(role.id)}
-                  className={`p-4 rounded-xl border-2 transition-all duration-200 text-left ${
-                    selectedRole === role.id
-                      ? "border-primary bg-primary/5 shadow-md"
-                      : "border-border hover:border-primary/50 hover:bg-secondary/50"
-                  }`}
-                >
-                  <Icon className={`w-5 h-5 mb-2 ${selectedRole === role.id ? "text-primary" : "text-muted-foreground"}`} />
-                  <div className={`font-medium text-sm ${selectedRole === role.id ? "text-primary" : "text-foreground"}`}>
-                    {role.label}
-                  </div>
-                  <div className="text-xs text-muted-foreground">{role.description}</div>
-                </button>
-              );
-            })}
+            <p className="text-muted-foreground mt-2">Enter your credentials to access your dashboard</p>
           </div>
 
           {/* Login Form */}
