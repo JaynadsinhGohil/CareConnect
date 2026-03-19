@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, UserPlus, ClipboardList, Settings, Search, RefreshCcw, Trash2, Eye } from "lucide-react";
+import { LayoutDashboard, Users, UserPlus, ClipboardList, Settings, Search, Trash2, Eye } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -167,10 +167,6 @@ const AdminStaffManagement = () => {
             <p className="text-muted-foreground">Manage hospital staff accounts, permissions, and lifecycle.</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={fetchStaff}>
-              <RefreshCcw className="w-4 h-4 mr-2" />
-              Refresh
-            </Button>
             <Button variant="hero" onClick={() => navigate("/dashboard/admin/add-staff")}>
               <UserPlus className="w-4 h-4 mr-2" />
               Add Staff
