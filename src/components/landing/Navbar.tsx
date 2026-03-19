@@ -6,12 +6,17 @@ import { Heart, Menu, X } from "lucide-react";
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
 
+  const handleHomeClick = () => {
+    window.scrollTo(0, 0);
+    setIsOpen(false);
+  };
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group">
+          <Link to="/" onClick={handleHomeClick} className="flex items-center gap-2 group">
             <div className="relative">
               <div className="w-10 h-10 rounded-xl gradient-hero flex items-center justify-center shadow-glow">
                 <Heart className="w-5 h-5 text-primary-foreground" />
@@ -25,7 +30,7 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
-            <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/" onClick={handleHomeClick} className="text-muted-foreground hover:text-foreground transition-colors">
               Home
             </Link>
             <a href="#services" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -62,7 +67,7 @@ const Navbar = () => {
         {isOpen && (
           <div className="md:hidden py-4 border-t border-border animate-fade-in">
             <div className="flex flex-col gap-4">
-              <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors py-2">
+              <Link to="/" onClick={handleHomeClick} className="text-muted-foreground hover:text-foreground transition-colors py-2">
                 Home
               </Link>
               <a href="#services" className="text-muted-foreground hover:text-foreground transition-colors py-2">
