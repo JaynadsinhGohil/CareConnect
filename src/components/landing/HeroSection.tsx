@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Lock, Users, Zap, CheckCircle2, Shield } from "lucide-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 
 const HeroSection = () => {
   return (
@@ -85,53 +85,15 @@ const HeroSection = () => {
             </div>
           </div>
 
-          {/* Right Content - Feature Cards */}
-          <div className="hidden lg:block space-y-6">
-            {/* Main Feature Card */}
-            <div className="glass-card rounded-2xl p-8 border border-primary/20 hover:border-primary/40 transition-colors animate-float shadow-lg">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center">
-                  <Shield className="w-7 h-7 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground">Enterprise Security</h3>
-                  <p className="text-sm text-muted-foreground">Bank-level encryption</p>
-                </div>
-              </div>
-              <ul className="space-y-3">
-                <li className="flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-primary flex-shrink-0" />
-                  <span className="text-sm text-muted-foreground">End-to-end encryption</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
-                  <span className="text-sm text-muted-foreground">HIPAA compliant standards</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-primary flex-shrink-0" />
-                  <span className="text-sm text-muted-foreground">Secure data storage</span>
-                </li>
-              </ul>
+          {/* Right Content - Hospital Image */}
+          <div className="hidden lg:block animate-float">
+            <div className="glass-card rounded-2xl p-3 border border-primary/20 shadow-lg overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1200&q=80"
+                alt="Modern hospital building"
+                className="w-full h-[520px] object-cover rounded-xl"
+              />
             </div>
-
-            {/* Feature Icons */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="glass-card rounded-xl p-6 text-center hover:border-primary/40 transition-colors">
-                <div className="w-12 h-12 rounded-lg bg-accent/20 flex items-center justify-center mx-auto mb-3">
-                  <Zap className="w-6 h-6 text-accent" />
-                </div>
-                <h4 className="font-semibold text-foreground mb-1">Lightning Fast</h4>
-                <p className="text-xs text-muted-foreground">Sub-second load times</p>
-              </div>
-              <div className="glass-card rounded-xl p-6 text-center hover:border-primary/40 transition-colors">
-                <div className="w-12 h-12 rounded-lg bg-success/20 flex items-center justify-center mx-auto mb-3">
-                  <Users className="w-6 h-6 text-success" />
-                </div>
-                <h4 className="font-semibold text-foreground mb-1">Role-Based Access</h4>
-                <p className="text-xs text-muted-foreground">4 specialized dashboards</p>
-              </div>
-            </div>
-
           </div>
         </div>
       </div>

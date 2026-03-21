@@ -9,7 +9,7 @@ const roles = [
   },
   {
     icon: Stethoscope,
-    title: "Doctor / Nurse",
+    title: "Doctor",
     description: "Clinical tools for patient care, medical records, and treatment management.",
     features: ["Patient Schedule", "EMR Access", "Medical Reports", "Prescription Management"],
   },

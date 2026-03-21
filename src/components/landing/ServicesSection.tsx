@@ -28,7 +28,7 @@ const services = [
   {
     icon: ClipboardList,
     title: "Staff Management",
-    description: "Comprehensive tools for managing doctors, nurses, and administrative staff efficiently.",
+    description: "Comprehensive tools for managing doctors and administrative staff efficiently.",
     color: "primary",
   },
   {

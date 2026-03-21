@@ -321,7 +321,7 @@ const AdminAddStaff = () => {
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-foreground">Add Staff Member</h1>
-            <p className="text-muted-foreground">Register a new doctor, nurse, or staff member</p>
+            <p className="text-muted-foreground">Register a new doctor or staff member</p>
           </div>
         </div>
 
@@ -445,7 +445,7 @@ const AdminAddStaff = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="doctor">Doctor</SelectItem>
-                      <SelectItem value="nurse">Nurse</SelectItem>
+                      <SelectItem value="nurse">Clinical Staff</SelectItem>
                       <SelectItem value="receptionist">Receptionist</SelectItem>
                     </SelectContent>
                   </Select>
