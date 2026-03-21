@@ -184,7 +184,7 @@ export const seedDatabase = async () => {
     await pool.query(`
       INSERT INTO users (id, email, password_hash, first_name, last_name, role, phone) 
       VALUES 
-        ('10000000-0000-0000-0000-000000000009', 'reception@careconnect.com', $1, 'Sarah', 'Johnson', 'receptionist', '+1-555-0112')
+        ('10000000-0000-0000-0000-000000000009', 'reception@careconnect.com', $1, 'David', 'Martinez', 'receptionist', '+1-555-0112')
     `, [hashedPassword]);
 
     // Seed appointments
