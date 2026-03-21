@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Shield, Clock, Users } from "lucide-react";
+import { ArrowRight, Lock, Users, Zap, CheckCircle2, Shield } from "lucide-react";
 
 const HeroSection = () => {
   return (
@@ -30,107 +30,126 @@ const HeroSection = () => {
               <span className="gradient-text">Digitally Connected</span>
             </h1>
 
-            <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0 text-balance">
+            <p className="text-lg text-muted-foreground mb-10 max-w-xl text-balance">
               CareConnect transforms healthcare management with seamless digital solutions. 
               From patient records to appointments, experience healthcare without the paperwork.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-12">
+            {/* Key Benefits */}
+            <div className="space-y-4 mb-10">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
+                  <CheckCircle2 className="w-4 h-4 text-primary" />
+                </div>
+                <span className="text-muted-foreground">Secure, HIPAA-compliant records</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
+                  <CheckCircle2 className="w-4 h-4 text-primary" />
+                </div>
+                <span className="text-muted-foreground">Instant appointment scheduling</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
+                  <CheckCircle2 className="w-4 h-4 text-primary" />
+                </div>
+                <span className="text-muted-foreground">Real-time patient-doctor collaboration</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <Link to="/login">
                 <Button variant="hero" size="xl" className="w-full sm:w-auto group">
                   Get Started
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
-              <Button variant="glass" size="xl" className="w-full sm:w-auto">
-                Learn More
-              </Button>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-6">
-              <div className="text-center lg:text-left">
-                <div className="text-2xl md:text-3xl font-bold text-foreground">10K+</div>
-                <div className="text-sm text-muted-foreground">Patients Served</div>
-              </div>
-              <div className="text-center lg:text-left">
-                <div className="text-2xl md:text-3xl font-bold text-foreground">50+</div>
-                <div className="text-sm text-muted-foreground">Medical Staff</div>
-              </div>
-              <div className="text-center lg:text-left">
-                <div className="text-2xl md:text-3xl font-bold text-foreground">99%</div>
-                <div className="text-sm text-muted-foreground">Satisfaction</div>
+            <div className="border-t border-border pt-8 mt-8">
+              <div className="grid grid-cols-3 gap-6">
+                <div className="text-center lg:text-left">
+                  <div className="text-2xl md:text-3xl font-bold text-foreground">10K+</div>
+                  <div className="text-sm text-muted-foreground">Patients Served</div>
+                </div>
+                <div className="text-center lg:text-left">
+                  <div className="text-2xl md:text-3xl font-bold text-foreground">50+</div>
+                  <div className="text-sm text-muted-foreground">Medical Staff</div>
+                </div>
+                <div className="text-center lg:text-left">
+                  <div className="text-2xl md:text-3xl font-bold text-foreground">99%</div>
+                  <div className="text-sm text-muted-foreground">Satisfaction</div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Right Content - Feature Cards */}
-          <div className="relative hidden lg:block">
-            <div className="relative z-10 space-y-6">
-              {/* Main Card */}
-              <div className="glass-card rounded-2xl p-8 animate-float">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 rounded-2xl gradient-hero flex items-center justify-center shadow-glow">
-                    <Shield className="w-8 h-8 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold text-foreground">Secure Records</h3>
-                    <p className="text-muted-foreground">HIPAA Compliant System</p>
-                  </div>
+          <div className="hidden lg:block space-y-6">
+            {/* Main Feature Card */}
+            <div className="glass-card rounded-2xl p-8 border border-primary/20 hover:border-primary/40 transition-colors animate-float shadow-lg">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center">
+                  <Shield className="w-7 h-7 text-primary" />
                 </div>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-success" />
-                    </div>
-                    <span className="text-sm text-muted-foreground">End-to-end encryption</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-success" />
-                    </div>
-                    <span className="text-sm text-muted-foreground">Role-based access control</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-success" />
-                    </div>
-                    <span className="text-sm text-muted-foreground">24/7 system monitoring</span>
-                  </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">Enterprise Security</h3>
+                  <p className="text-sm text-muted-foreground">Bank-level encryption</p>
                 </div>
               </div>
+              <ul className="space-y-3">
+                <li className="flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-primary flex-shrink-0" />
+                  <span className="text-sm text-muted-foreground">End-to-end encryption</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
+                  <span className="text-sm text-muted-foreground">HIPAA compliant standards</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-primary flex-shrink-0" />
+                  <span className="text-sm text-muted-foreground">Secure data storage</span>
+                </li>
+              </ul>
+            </div>
 
-              {/* Floating Cards */}
-              <div className="absolute -left-8 top-1/2 glass-card rounded-xl p-4 shadow-lg animate-fade-in" style={{ animationDelay: '0.3s' }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
-                    <Clock className="w-5 h-5 text-accent" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-foreground">Quick Access</div>
-                    <div className="text-xs text-muted-foreground">Avg. 2min login</div>
-                  </div>
+            {/* Feature Icons */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="glass-card rounded-xl p-6 text-center hover:border-primary/40 transition-colors">
+                <div className="w-12 h-12 rounded-lg bg-accent/20 flex items-center justify-center mx-auto mb-3">
+                  <Zap className="w-6 h-6 text-accent" />
                 </div>
+                <h4 className="font-semibold text-foreground mb-1">Lightning Fast</h4>
+                <p className="text-xs text-muted-foreground">Sub-second load times</p>
               </div>
-
-              <div className="absolute -right-4 bottom-0 glass-card rounded-xl p-4 shadow-lg animate-fade-in" style={{ animationDelay: '0.5s' }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-                    <Users className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-foreground">Multi-Role</div>
-                    <div className="text-xs text-muted-foreground">5 User Types</div>
-                  </div>
+              <div className="glass-card rounded-xl p-6 text-center hover:border-primary/40 transition-colors">
+                <div className="w-12 h-12 rounded-lg bg-success/20 flex items-center justify-center mx-auto mb-3">
+                  <Users className="w-6 h-6 text-success" />
                 </div>
+                <h4 className="font-semibold text-foreground mb-1">Role-Based Access</h4>
+                <p className="text-xs text-muted-foreground">4 specialized dashboards</p>
               </div>
             </div>
 
-            {/* Background Decoration */}
-            <div className="absolute -inset-4 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 rounded-3xl -z-10" />
+            {/* Trust Badge */}
+            <div className="glass-card rounded-xl p-4 border border-primary/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle2 className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Trusted by Healthcare Providers</p>
+                  <p className="text-xs text-muted-foreground">Beta phase - more coming soon</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Features Section Below */}
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background/80 to-transparent pointer-events-none" />
 
       {/* Scroll Indicator */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">

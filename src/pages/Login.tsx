@@ -49,18 +49,18 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background flex flex-col lg:flex-row">
       {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 gradient-hero p-12 flex-col justify-between relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 gradient-hero p-12 flex-col justify-center items-start relative overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(0_0%_100%/0.05)_1px,transparent_1px),linear-gradient(to_bottom,hsl(0_0%_100%/0.05)_1px,transparent_1px)] bg-[size:40px_40px]" />
         
-        <div className="relative z-10">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <Heart className="w-6 h-6 text-primary-foreground" />
+        <div className="relative z-10 mb-16">
+          <Link to="/" className="flex items-center gap-4 group hover:opacity-90 transition-opacity">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-white/30 to-white/10 backdrop-blur-md flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow">
+              <Heart className="w-7 h-7 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold text-primary-foreground">CareConnect</span>
+            <span className="text-3xl font-bold text-primary-foreground">CareConnect</span>
           </Link>
         </div>
 
@@ -71,29 +71,9 @@ const Login = () => {
           <p className="text-primary-foreground/80 text-lg max-w-md">
             Access your personalized dashboard with secure, role-based authentication designed for healthcare professionals and patients.
           </p>
-
-          {/* Feature List */}
-          <div className="space-y-4 pt-6">
-            <div className="flex items-center gap-3 text-primary-foreground/90">
-              <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                <Shield className="w-4 h-4" />
-              </div>
-              <span>HIPAA Compliant Security</span>
-            </div>
-            <div className="flex items-center gap-3 text-primary-foreground/90">
-              <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                <Lock className="w-4 h-4" />
-              </div>
-              <span>End-to-End Encryption</span>
-            </div>
-          </div>
-
-          {/* Demo Credentials */}
         </div>
 
-        <div className="relative z-10 text-primary-foreground/60 text-sm">
-          © 2024 CareConnect. All rights reserved.
-        </div>
+
 
         {/* Decorative Elements */}
         <div className="absolute -right-20 top-1/3 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
@@ -101,15 +81,15 @@ const Login = () => {
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <div className="w-full max-w-md space-y-8">
           {/* Mobile Logo */}
-          <div className="lg:hidden text-center mb-8">
-            <Link to="/" className="inline-flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl gradient-hero flex items-center justify-center">
-                <Heart className="w-5 h-5 text-primary-foreground" />
+          <div className="lg:hidden text-center mb-12">
+            <Link to="/" className="inline-flex items-center gap-3 group hover:opacity-90 transition-opacity">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-300/30 to-teal-400/20 backdrop-blur-md flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
+                <Heart className="w-6 h-6 text-teal-600" />
               </div>
-              <span className="text-xl font-bold text-foreground">CareConnect</span>
+              <span className="text-2xl font-bold text-foreground">CareConnect</span>
             </Link>
           </div>
 
