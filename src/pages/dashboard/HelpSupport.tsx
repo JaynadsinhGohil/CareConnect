@@ -66,34 +66,34 @@ const HelpSupport = () => {
 
   const faqItems = [
     {
-      question: "How do I book an appointment?",
+      question: "How do I add a new staff member?",
       answer:
-        "You can book an appointment by clicking the 'Book Appointment' button on your dashboard. Select your preferred doctor, date, and time, then confirm your booking.",
+        "Go to Staff Management > Add Staff button. Fill in the staff details including name, email, role (Doctor/Receptionist), and specialization if applicable. The new staff member will receive credentials via email.",
     },
     {
-      question: "How can I view my medical records?",
+      question: "How do I manage user accounts and permissions?",
       answer:
-        "Your medical records are available in the 'Medical Records' section of your dashboard. You can view, download, and print your records as needed.",
+        "In Staff Management, you can view all staff members, update their status (Active/Inactive/Suspended), and manage their roles. You can also remove staff members from the system.",
     },
     {
-      question: "How do I update my prescriptions?",
+      question: "How can I view system analytics and reports?",
       answer:
-        "Your current prescriptions are displayed in the 'Current Prescriptions' section. You can request refills by clicking the refill button on any prescription.",
+        "Access the Admin Dashboard to view key metrics like total patients, medical staff count, total appointments, and system health status. Use the admin panel for detailed reports and data exports.",
     },
     {
-      question: "What should I do if I forget my password?",
+      question: "How do I manage patient records?",
       answer:
-        "Click on 'Forgot Password' on the login page and follow the instructions to reset your password. You'll receive an email with a reset link.",
+        "Navigate to Patients section in the admin panel to view all patient records, manage their information, and track their medical history and appointments.",
     },
     {
-      question: "How do I cancel an appointment?",
+      question: "How do I monitor appointments?",
       answer:
-        "Go to your 'My Appointments' section and click the cancel button on the appointment you wish to cancel. Some appointments may have a cancellation fee depending on the timing.",
+        "Use the Appointments section to view all scheduled appointments, their status, and manage appointment-related operations across all doctors and patients.",
     },
     {
-      question: "What are your business hours?",
+      question: "Where can I find system settings and configuration?",
       answer:
-        "CareConnect is available 24/7 for online services. Our healthcare professionals typically operate during business hours, with emergency support available at all times.",
+        "System Settings are available in the admin panel where you can configure system parameters, manage security settings, and update general system configuration.",
     },
   ];
 
@@ -112,7 +112,11 @@ const HelpSupport = () => {
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-foreground">Help & Support</h1>
-            <p className="text-muted-foreground">Get help with your account and find answers to common questions</p>
+            <p className="text-muted-foreground">
+              {user?.role === "admin" 
+                ? "Admin documentation and system management help"
+                : "Get help with your account and find answers to common questions"}
+            </p>
           </div>
         </div>
 
@@ -152,75 +156,79 @@ const HelpSupport = () => {
           </Card>
         </div>
 
-        {/* Support Request Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Submit a Support Request</CardTitle>
-            <CardDescription>Tell us how we can help you</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Category */}
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <select
-                  id="category"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
-                >
-                  <option value="general">General Question</option>
-                  <option value="technical">Technical Issue</option>
-                  <option value="appointment">Appointment Help</option>
-                  <option value="billing">Billing & Payment</option>
-                  <option value="medical">Medical Concern</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
+        {/* Support Request Form - Only for non-admin users */}
+        {user?.role !== "admin" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Submit a Support Request</CardTitle>
+              <CardDescription>Tell us how we can help you</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Category */}
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category</Label>
+                  <select
+                    id="category"
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
+                  >
+                    <option value="general">General Question</option>
+                    <option value="technical">Technical Issue</option>
+                    <option value="appointment">Appointment Help</option>
+                    <option value="billing">Billing & Payment</option>
+                    <option value="medical">Medical Concern</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
 
-              {/* Subject */}
-              <div className="space-y-2">
-                <Label htmlFor="subject">Subject</Label>
-                <Input
-                  id="subject"
-                  name="subject"
-                  value={formData.subject}
-                  onChange={handleChange}
-                  placeholder="Briefly describe your issue or question"
-                />
-              </div>
+                {/* Subject */}
+                <div className="space-y-2">
+                  <Label htmlFor="subject">Subject</Label>
+                  <Input
+                    id="subject"
+                    name="subject"
+                    value={formData.subject}
+                    onChange={handleChange}
+                    placeholder="Briefly describe your issue or question"
+                  />
+                </div>
 
-              {/* Message */}
-              <div className="space-y-2">
-                <Label htmlFor="message">Message</Label>
-                <Textarea
-                  id="message"
-                  name="message"
-                  rows={6}
-                  value={formData.message}
-                  onChange={handleChange}
-                  placeholder="Provide detailed information about your issue or question"
-                />
-              </div>
+                {/* Message */}
+                <div className="space-y-2">
+                  <Label htmlFor="message">Message</Label>
+                  <Textarea
+                    id="message"
+                    name="message"
+                    rows={6}
+                    value={formData.message}
+                    onChange={handleChange}
+                    placeholder="Provide detailed information about your issue or question"
+                  />
+                </div>
 
-              {/* Submit Button */}
-              <div className="flex gap-3">
-                <Button type="submit" disabled={isLoading} className="w-full md:w-auto">
-                  {isLoading ? "Submitting..." : "Submit Request"}
-                </Button>
-                <Button type="button" variant="outline" onClick={() => setFormData({ subject: "", message: "", category: "general" })}>
-                  Clear
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+                {/* Submit Button */}
+                <div className="flex gap-3">
+                  <Button type="submit" disabled={isLoading} className="w-full md:w-auto">
+                    {isLoading ? "Submitting..." : "Submit Request"}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setFormData({ subject: "", message: "", category: "general" })}>
+                    Clear
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
 
         {/* FAQ Section */}
         <Card>
           <CardHeader>
-            <CardTitle>Frequently Asked Questions</CardTitle>
+            <CardTitle>
+              {user?.role === "admin" ? "Admin FAQs & Documentation" : "Frequently Asked Questions"}
+            </CardTitle>
             <CardDescription>Find quick answers to common questions</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
