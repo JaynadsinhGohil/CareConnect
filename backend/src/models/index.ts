@@ -190,7 +190,7 @@ export const appointmentModel = {
     // Check if doctor has appointment within 1 hour (30 minutes before and 30 minutes after)
     const startTime = new Date(appointmentDate.getTime() - 30 * 60000);
     const endTime = new Date(appointmentDate.getTime() + 30 * 60000);
-    
+
     const result = await pool.query(`
       SELECT * FROM appointments 
       WHERE doctor_id = $1 
@@ -199,7 +199,7 @@ export const appointmentModel = {
         AND status != 'cancelled'
       LIMIT 1
     `, [doctorId, startTime, endTime]);
-    
+
     return result.rows.length > 0;
   },
 

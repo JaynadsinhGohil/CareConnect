@@ -34,7 +34,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
-            
+
             {/* Protected Routes */}
             <Route
               path="/dashboard/admin"
@@ -140,7 +140,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            
+
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

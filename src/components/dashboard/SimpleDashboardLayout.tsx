@@ -18,10 +18,10 @@ interface SimpleDashboardLayoutProps {
   userId?: string;
 }
 
-const SimpleDashboardLayout = ({ 
-  children, 
-  role, 
-  userName, 
+const SimpleDashboardLayout = ({
+  children,
+  role,
+  userName,
   userId,
 }: SimpleDashboardLayoutProps) => {
   const navigate = useNavigate();

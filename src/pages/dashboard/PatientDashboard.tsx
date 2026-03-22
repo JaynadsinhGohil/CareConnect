@@ -117,9 +117,9 @@ const PatientDashboard = () => {
   const initials = user ? `${user.firstName[0]}${user.lastName[0]}` : 'P';
 
   return (
-    <SimpleDashboardLayout 
-      role="patient" 
-      userName={user?.firstName || "Patient"} 
+    <SimpleDashboardLayout
+      role="patient"
+      userName={user?.firstName || "Patient"}
       userId={user?.id?.substring(0, 8) || "P-00"}
     >
       <div className="space-y-6 max-w-7xl mx-auto">
@@ -206,9 +206,8 @@ const PatientDashboard = () => {
                 appointments.slice(0, 6).map((apt) => (
                   <div
                     key={apt.id}
-                    className={`p-4 rounded-xl border ${
-                      apt.status === "scheduled" ? "bg-primary/5 border-primary/20" : "bg-card"
-                    }`}
+                    className={`p-4 rounded-xl border ${apt.status === "scheduled" ? "bg-primary/5 border-primary/20" : "bg-card"
+                      }`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">

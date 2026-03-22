@@ -56,9 +56,8 @@ const DashboardLayout = ({ children, navItems, role, userName, onProfileClick, o
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-sidebar transform transition-transform duration-300 ease-in-out ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-sidebar transform transition-transform duration-300 ease-in-out ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <div className="flex flex-col h-full">
           {/* Logo & Close Button */}
@@ -90,11 +89,10 @@ const DashboardLayout = ({ children, navItems, role, userName, onProfileClick, o
                   key={index}
                   to={item.path}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                    isActive
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${isActive
                       ? "bg-sidebar-accent text-sidebar-primary"
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                  }`}
+                    }`}
                 >
                   <span className={isActive ? "text-sidebar-primary" : ""}>{item.icon}</span>
                   <span className="font-medium">{item.label}</span>
@@ -180,8 +178,8 @@ const DashboardLayout = ({ children, navItems, role, userName, onProfileClick, o
                 <DropdownMenuItem onClick={onProfileClick}>Profile Settings</DropdownMenuItem>
                 <DropdownMenuItem onClick={onHelpClick}>Help & Support</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={handleLogout} 
+                <DropdownMenuItem
+                  onClick={handleLogout}
                   className="text-destructive cursor-pointer"
                   disabled={isLoggingOut}
                 >

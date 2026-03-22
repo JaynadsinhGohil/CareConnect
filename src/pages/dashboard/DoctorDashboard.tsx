@@ -350,8 +350,8 @@ const DoctorDashboard = () => {
                             {toDateOnly(new Date(appointment.appointment_date)).getTime() > today.getTime()
                               ? "Future"
                               : toDateOnly(new Date(appointment.appointment_date)).getTime() === today.getTime()
-                              ? "Present"
-                              : "Past"}
+                                ? "Present"
+                                : "Past"}
                           </p>
                         </div>
                       </div>

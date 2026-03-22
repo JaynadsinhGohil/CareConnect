@@ -114,7 +114,7 @@ export const initializeDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_prescriptions_patient_id ON prescriptions(patient_id);
       CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
     `);
-    
+
     console.log('Database initialized successfully');
   } catch (error) {
     console.error('Error initializing database:', error);
