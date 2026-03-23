@@ -6,6 +6,23 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+const buildQueryString = (params?: Record<string, string | number | undefined>) => {
+  if (!params) {
+    return '';
+  }
+
+  const searchParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === '') {
+      continue;
+    }
+    searchParams.append(key, String(value));
+  }
+
+  const serialized = searchParams.toString();
+  return serialized ? `?${serialized}` : '';
+};
+
 const getAuthHeader = () => {
   const token = localStorage.getItem('accessToken');
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -136,9 +153,17 @@ export const adminApi = {
   updateStaffStatus: (staffId: string, status: string) =>
     apiClient.patch(`/admin/staff/${staffId}/status`, { status }),
   removeStaff: (staffId: string) => apiClient.delete(`/admin/staff/${staffId}`),
-  getDoctors: () => apiClient.get('/admin/doctors'),
-  getPatients: () => apiClient.get('/admin/patients'),
-  getAppointments: () => apiClient.get('/admin/appointments'),
+  getDoctors: (params?: { page?: number; pageSize?: number; query?: string }) =>
+    apiClient.get(`/admin/doctors${buildQueryString(params)}`),
+  getPatients: (params?: { page?: number; pageSize?: number; query?: string }) =>
+    apiClient.get(`/admin/patients${buildQueryString(params)}`),
+  getAppointments: (params?: {
+    page?: number;
+    pageSize?: number;
+    query?: string;
+    date?: string;
+    doctorId?: string;
+  }) => apiClient.get(`/admin/appointments${buildQueryString(params)}`),
   checkAppointmentConflict: (data: any) => apiClient.post('/admin/appointments/check-conflict', data),
   createAppointment: (data: any) => apiClient.post('/admin/appointments', data),
   updateAppointmentStatus: (appointmentId: string, status: string) =>

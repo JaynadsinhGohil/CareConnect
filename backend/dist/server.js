@@ -1,17 +1,33 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import http from 'http';
+import { WebSocketServer } from 'ws';
 import { initializeDatabase, seedDatabase } from './models/schema.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
 import doctorRoutes from './routes/doctors.js';
 import patientRoutes from './routes/patients.js';
 import adminRoutes from './routes/admin.js';
+import { initializeRealtimeServer } from './realtime/ws.js';
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
-// Middleware
-app.use(cors());
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server, path: '/ws' });
+initializeRealtimeServer(wss);
+// Middleware - CORS configured for production and development
+const allowedOrigins = [
+    'http://localhost:8080',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    /^https:\/\/.*\.vercel\.app$/, // Accept all Vercel deployment URLs
+    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+];
+app.use(cors({
+    origin: allowedOrigins,
+    credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 // Health check
@@ -36,9 +52,10 @@ const startServer = async () => {
     try {
         await initializeDatabase();
         await seedDatabase();
-        app.listen(PORT, () => {
+        server.listen(PORT, () => {
             console.log(`Server running on http://localhost:${PORT}`);
             console.log(`Health check: http://localhost:${PORT}/api/health`);
+            console.log(`Realtime WS endpoint: ws://localhost:${PORT}/ws`);
         });
     }
     catch (error) {

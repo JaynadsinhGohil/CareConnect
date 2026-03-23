@@ -1,7 +1,8 @@
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database.js';
-import { doctorModel, appointmentModel, patientModel, medicalRecordModel, prescriptionModel } from '../models/index.js';
+import { doctorModel, appointmentModel, patientModel, medicalRecordModel, prescriptionModel, auditLogModel } from '../models/index.js';
+import { broadcastRealtimeEvent } from '../realtime/ws.js';
 export const doctorController = {
     createStaff: async (req, res) => {
         try {
@@ -44,6 +45,17 @@ export const doctorController = {
     },
     getAll: async (req, res) => {
         try {
+            const page = Number(req.query.page || 0);
+            const pageSize = Number(req.query.pageSize || 0);
+            const query = typeof req.query.query === 'string' ? req.query.query : '';
+            if (page > 0 || pageSize > 0 || query.trim().length > 0) {
+                const result = await doctorModel.getAllPaginated({
+                    page,
+                    pageSize,
+                    query,
+                });
+                return res.json(result);
+            }
             const doctors = await doctorModel.getAll();
             res.json(doctors);
         }
@@ -79,6 +91,20 @@ export const doctorController = {
             res.status(500).json({ error: 'Failed to get appointments' });
         }
     },
+    getPatients: async (req, res) => {
+        try {
+            const doctor = await doctorModel.findByUserId(req.userId);
+            if (!doctor) {
+                return res.status(404).json({ error: 'Doctor not found' });
+            }
+            const patients = await doctorModel.getPatientsByDoctor(doctor.id);
+            res.json(patients);
+        }
+        catch (error) {
+            console.error('Get doctor patients error:', error);
+            res.status(500).json({ error: 'Failed to get patients' });
+        }
+    },
     updateAppointmentStatus: async (req, res) => {
         try {
             const { appointmentId } = req.params;
@@ -87,6 +113,11 @@ export const doctorController = {
                 return res.status(400).json({ error: 'Invalid status' });
             }
             const appointment = await appointmentModel.updateStatus(appointmentId, status);
+            await auditLogModel.create(req.userId || null, req.role || null, 'appointment-status-updated', 'appointment', appointmentId, { status });
+            broadcastRealtimeEvent('appointment-updated', {
+                appointmentId,
+                status,
+            });
             res.json(appointment);
         }
         catch (error) {
@@ -98,6 +129,17 @@ export const doctorController = {
 export const patientController = {
     getAll: async (req, res) => {
         try {
+            const page = Number(req.query.page || 0);
+            const pageSize = Number(req.query.pageSize || 0);
+            const query = typeof req.query.query === 'string' ? req.query.query : '';
+            if (page > 0 || pageSize > 0 || query.trim().length > 0) {
+                const result = await patientModel.getAllPaginated({
+                    page,
+                    pageSize,
+                    query,
+                });
+                return res.json(result);
+            }
             const patients = await patientModel.getAll();
             res.json(patients);
         }
@@ -210,6 +252,16 @@ export const patientController = {
                 return res.status(409).json({ error: 'Doctor has another appointment at this time. Please choose a different time.' });
             }
             const appointment = await appointmentModel.create(patient.id, doctorId, new Date(appointmentDate), reason);
+            await auditLogModel.create(req.userId || null, req.role || null, 'appointment-created', 'appointment', appointment.id, {
+                doctorId,
+                patientId: patient.id,
+                appointmentDate,
+            });
+            broadcastRealtimeEvent('appointment-created', {
+                appointmentId: appointment.id,
+                doctorId,
+                patientId: patient.id,
+            });
             res.status(201).json(appointment);
         }
         catch (error) {
@@ -259,7 +311,7 @@ export const medicalRecordController = {
     },
     create: async (req, res) => {
         try {
-            const { patientId, appointmentId, diagnosis, treatment_plan, medications } = req.body;
+            const { patientId, appointmentId, diagnosis, treatment_plan, medications, attachments } = req.body;
             if (!patientId || !diagnosis || !treatment_plan) {
                 return res.status(400).json({ error: 'Missing required fields' });
             }
@@ -267,12 +319,34 @@ export const medicalRecordController = {
             if (!doctor) {
                 return res.status(404).json({ error: 'Doctor not found' });
             }
-            const record = await medicalRecordModel.create(patientId, doctor.id, appointmentId, diagnosis, treatment_plan, medications || '');
+            const record = await medicalRecordModel.create(patientId, doctor.id, appointmentId, diagnosis, treatment_plan, medications || '', Array.isArray(attachments) ? attachments : []);
             res.status(201).json(record);
         }
         catch (error) {
             console.error('Create medical record error:', error);
             res.status(500).json({ error: 'Failed to create medical record' });
+        }
+    },
+    update: async (req, res) => {
+        try {
+            const { recordId } = req.params;
+            const { diagnosis, treatment_plan, medications, attachments } = req.body;
+            if (!diagnosis || !treatment_plan) {
+                return res.status(400).json({ error: 'Missing required fields' });
+            }
+            const doctor = await doctorModel.findByUserId(req.userId);
+            if (!doctor) {
+                return res.status(404).json({ error: 'Doctor not found' });
+            }
+            const updated = await medicalRecordModel.updateByDoctor(recordId, doctor.id, diagnosis, treatment_plan, medications || '', Array.isArray(attachments) ? attachments : []);
+            if (!updated) {
+                return res.status(404).json({ error: 'Medical record not found' });
+            }
+            res.json(updated);
+        }
+        catch (error) {
+            console.error('Update medical record error:', error);
+            res.status(500).json({ error: 'Failed to update medical record' });
         }
     },
 };
@@ -303,6 +377,28 @@ export const prescriptionController = {
         catch (error) {
             console.error('Create prescription error:', error);
             res.status(500).json({ error: 'Failed to create prescription' });
+        }
+    },
+    update: async (req, res) => {
+        try {
+            const { prescriptionId } = req.params;
+            const { medicationName, dosage, frequency, duration, instructions } = req.body;
+            if (!medicationName || !dosage || !frequency) {
+                return res.status(400).json({ error: 'Missing required fields' });
+            }
+            const doctor = await doctorModel.findByUserId(req.userId);
+            if (!doctor) {
+                return res.status(404).json({ error: 'Doctor not found' });
+            }
+            const updated = await prescriptionModel.updateByDoctor(prescriptionId, doctor.id, medicationName, dosage, frequency, duration || '30 days', instructions || '');
+            if (!updated) {
+                return res.status(404).json({ error: 'Prescription not found' });
+            }
+            res.json(updated);
+        }
+        catch (error) {
+            console.error('Update prescription error:', error);
+            res.status(500).json({ error: 'Failed to update prescription' });
         }
     },
 };
@@ -400,6 +496,21 @@ export const adminController = {
 export const appointmentController = {
     getAll: async (req, res) => {
         try {
+            const page = Number(req.query.page || 0);
+            const pageSize = Number(req.query.pageSize || 0);
+            const query = typeof req.query.query === 'string' ? req.query.query : '';
+            const date = typeof req.query.date === 'string' ? req.query.date : '';
+            const doctorId = typeof req.query.doctorId === 'string' ? req.query.doctorId : '';
+            if (page > 0 || pageSize > 0 || query.trim().length > 0 || date || doctorId) {
+                const result = await appointmentModel.getAllPaginated({
+                    page,
+                    pageSize,
+                    query,
+                    date,
+                    doctorId,
+                });
+                return res.json(result);
+            }
             const appointments = await appointmentModel.getAll();
             res.json(appointments);
         }
@@ -447,6 +558,16 @@ export const appointmentController = {
                 return res.status(409).json({ error: 'Doctor has another appointment at this time. Please choose a different time.' });
             }
             const appointment = await appointmentModel.create(patientId, doctorId, new Date(appointmentDate), reason || 'General checkup');
+            await auditLogModel.create(req.userId || null, req.role || null, 'appointment-created', 'appointment', appointment.id, {
+                doctorId,
+                patientId,
+                appointmentDate,
+            });
+            broadcastRealtimeEvent('appointment-created', {
+                appointmentId: appointment.id,
+                doctorId,
+                patientId,
+            });
             res.status(201).json(appointment);
         }
         catch (error) {
@@ -462,6 +583,11 @@ export const appointmentController = {
                 return res.status(400).json({ error: 'Invalid status' });
             }
             const appointment = await appointmentModel.updateStatus(appointmentId, status);
+            await auditLogModel.create(req.userId || null, req.role || null, 'appointment-status-updated', 'appointment', appointmentId, { status });
+            broadcastRealtimeEvent('appointment-updated', {
+                appointmentId,
+                status,
+            });
             res.json(appointment);
         }
         catch (error) {

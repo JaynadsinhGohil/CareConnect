@@ -2,8 +2,9 @@ import { Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database.js';
-import { doctorModel, appointmentModel, patientModel, medicalRecordModel, prescriptionModel } from '../models/index.js';
+import { doctorModel, appointmentModel, patientModel, medicalRecordModel, prescriptionModel, auditLogModel } from '../models/index.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { broadcastRealtimeEvent } from '../realtime/ws.js';
 
 export const doctorController = {
   createStaff: async (req: AuthRequest, res: Response) => {
@@ -59,6 +60,19 @@ export const doctorController = {
 
   getAll: async (req: AuthRequest, res: Response) => {
     try {
+      const page = Number(req.query.page || 0);
+      const pageSize = Number(req.query.pageSize || 0);
+      const query = typeof req.query.query === 'string' ? req.query.query : '';
+
+      if (page > 0 || pageSize > 0 || query.trim().length > 0) {
+        const result = await doctorModel.getAllPaginated({
+          page,
+          pageSize,
+          query,
+        });
+        return res.json(result);
+      }
+
       const doctors = await doctorModel.getAll();
       res.json(doctors);
     } catch (error) {
@@ -120,6 +134,21 @@ export const doctorController = {
       }
 
       const appointment = await appointmentModel.updateStatus(appointmentId, status);
+
+      await auditLogModel.create(
+        req.userId || null,
+        req.role || null,
+        'appointment-status-updated',
+        'appointment',
+        appointmentId,
+        { status }
+      );
+
+      broadcastRealtimeEvent('appointment-updated', {
+        appointmentId,
+        status,
+      });
+
       res.json(appointment);
     } catch (error) {
       console.error('Update appointment error:', error);
@@ -131,6 +160,19 @@ export const doctorController = {
 export const patientController = {
   getAll: async (req: AuthRequest, res: Response) => {
     try {
+      const page = Number(req.query.page || 0);
+      const pageSize = Number(req.query.pageSize || 0);
+      const query = typeof req.query.query === 'string' ? req.query.query : '';
+
+      if (page > 0 || pageSize > 0 || query.trim().length > 0) {
+        const result = await patientModel.getAllPaginated({
+          page,
+          pageSize,
+          query,
+        });
+        return res.json(result);
+      }
+
       const patients = await patientModel.getAll();
       res.json(patients);
     } catch (error) {
@@ -265,6 +307,25 @@ export const patientController = {
         new Date(appointmentDate),
         reason
       );
+
+      await auditLogModel.create(
+        req.userId || null,
+        req.role || null,
+        'appointment-created',
+        'appointment',
+        appointment.id,
+        {
+          doctorId,
+          patientId: patient.id,
+          appointmentDate,
+        }
+      );
+
+      broadcastRealtimeEvent('appointment-created', {
+        appointmentId: appointment.id,
+        doctorId,
+        patientId: patient.id,
+      });
 
       res.status(201).json(appointment);
     } catch (error) {
@@ -586,6 +647,23 @@ export const adminController = {
 export const appointmentController = {
   getAll: async (req: AuthRequest, res: Response) => {
     try {
+      const page = Number(req.query.page || 0);
+      const pageSize = Number(req.query.pageSize || 0);
+      const query = typeof req.query.query === 'string' ? req.query.query : '';
+      const date = typeof req.query.date === 'string' ? req.query.date : '';
+      const doctorId = typeof req.query.doctorId === 'string' ? req.query.doctorId : '';
+
+      if (page > 0 || pageSize > 0 || query.trim().length > 0 || date || doctorId) {
+        const result = await appointmentModel.getAllPaginated({
+          page,
+          pageSize,
+          query,
+          date,
+          doctorId,
+        });
+        return res.json(result);
+      }
+
       const appointments = await appointmentModel.getAll();
       res.json(appointments);
     } catch (error) {
@@ -644,6 +722,25 @@ export const appointmentController = {
         reason || 'General checkup'
       );
 
+      await auditLogModel.create(
+        req.userId || null,
+        req.role || null,
+        'appointment-created',
+        'appointment',
+        appointment.id,
+        {
+          doctorId,
+          patientId,
+          appointmentDate,
+        }
+      );
+
+      broadcastRealtimeEvent('appointment-created', {
+        appointmentId: appointment.id,
+        doctorId,
+        patientId,
+      });
+
       res.status(201).json(appointment);
     } catch (error) {
       console.error('Create appointment error:', error);
@@ -661,6 +758,21 @@ export const appointmentController = {
       }
 
       const appointment = await appointmentModel.updateStatus(appointmentId, status);
+
+      await auditLogModel.create(
+        req.userId || null,
+        req.role || null,
+        'appointment-status-updated',
+        'appointment',
+        appointmentId,
+        { status }
+      );
+
+      broadcastRealtimeEvent('appointment-updated', {
+        appointmentId,
+        status,
+      });
+
       res.json(appointment);
     } catch (error) {
       console.error('Update appointment error:', error);

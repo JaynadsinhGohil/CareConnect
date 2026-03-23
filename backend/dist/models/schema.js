@@ -101,6 +101,27 @@ export const initializeDatabase = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
+      -- Audit logs for operational traceability
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        actor_role VARCHAR(50),
+        action VARCHAR(100) NOT NULL,
+        target_type VARCHAR(50) NOT NULL,
+        target_id UUID,
+        metadata JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- Backward-compatible migration for existing audit_logs tables
+      ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS actor_user_id UUID;
+      ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS actor_role VARCHAR(50);
+      ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS action VARCHAR(100);
+      ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS target_type VARCHAR(50);
+      ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS target_id UUID;
+      ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS metadata JSONB;
+      ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
       -- Create indexes
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
@@ -112,6 +133,8 @@ export const initializeDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_medical_records_patient_id ON medical_records(patient_id);
       CREATE INDEX IF NOT EXISTS idx_prescriptions_patient_id ON prescriptions(patient_id);
       CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+      CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_user_id ON audit_logs(actor_user_id);
     `);
         console.log('Database initialized successfully');
     }
@@ -175,7 +198,7 @@ export const seedDatabase = async () => {
         await pool.query(`
       INSERT INTO users (id, email, password_hash, first_name, last_name, role, phone) 
       VALUES 
-        ('10000000-0000-0000-0000-000000000009', 'reception@careconnect.com', $1, 'Sarah', 'Johnson', 'receptionist', '+1-555-0112')
+        ('10000000-0000-0000-0000-000000000009', 'reception@careconnect.com', $1, 'David', 'Martinez', 'receptionist', '+1-555-0112')
     `, [hashedPassword]);
         // Seed appointments
         const now = new Date();

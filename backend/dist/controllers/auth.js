@@ -55,12 +55,13 @@ export const authController = {
     },
     login: async (req, res) => {
         try {
-            const { email, password } = req.body;
-            if (!email || !password) {
-                return res.status(400).json({ error: 'Email and password required' });
+            const { identifier, email, phone, password } = req.body;
+            const loginIdentifier = identifier || email || phone;
+            if (!loginIdentifier || !password) {
+                return res.status(400).json({ error: 'Email/mobile and password required' });
             }
             // Find user
-            const user = await userModel.findByEmail(email);
+            const user = await userModel.findByEmailOrPhone(loginIdentifier);
             if (!user) {
                 return res.status(401).json({ error: 'Invalid credentials' });
             }

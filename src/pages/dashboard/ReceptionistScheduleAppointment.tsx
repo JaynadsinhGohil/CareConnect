@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Calendar, Users, Clock, Phone, AlertCircle } from "lucide-react";
+import { ArrowLeft, Calendar, Users, Clock, Phone, AlertCircle, Search } from "lucide-react";
 import SimpleDashboardLayout from "@/components/dashboard/SimpleDashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { adminApi } from "@/lib/api";
@@ -37,16 +38,30 @@ interface Patient {
   blood_type?: string;
 }
 
+const appointmentStatusColors = {
+  confirmed: "bg-success/10 text-success",
+  scheduled: "bg-primary/10 text-primary",
+  completed: "bg-success/10 text-success",
+  cancelled: "bg-destructive/10 text-destructive",
+};
+
 const ReceptionistScheduleAppointment = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [conflictError, setConflictError] = useState<string | null>(null);
+  const [isCheckingConflict, setIsCheckingConflict] = useState(false);
+  const [isSlotAvailable, setIsSlotAvailable] = useState<boolean | null>(null);
+  const [doctorSearchTerm, setDoctorSearchTerm] = useState("");
+  const [patientSearchTerm, setPatientSearchTerm] = useState("");
+  const [visibleDoctorCount, setVisibleDoctorCount] = useState(8);
+  const [visiblePatientCount, setVisiblePatientCount] = useState(8);
 
   const [formData, setFormData] = useState({
     doctorId: "",
@@ -60,12 +75,70 @@ const ReceptionistScheduleAppointment = () => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    setVisibleDoctorCount(8);
+  }, [doctorSearchTerm]);
+
+  useEffect(() => {
+    setVisiblePatientCount(8);
+  }, [patientSearchTerm]);
+
+  useEffect(() => {
+    const { doctorId, appointmentDate, appointmentTime } = formData;
+
+    if (!doctorId || !appointmentDate || !appointmentTime) {
+      setConflictError(null);
+      setIsSlotAvailable(null);
+      return;
+    }
+
+    const appointmentDateTime = new Date(`${appointmentDate}T${appointmentTime}`);
+    if (Number.isNaN(appointmentDateTime.getTime())) {
+      setConflictError("Please select a valid date and time.");
+      setIsSlotAvailable(null);
+      return;
+    }
+
+    const now = new Date();
+    if (appointmentDateTime <= now) {
+      setConflictError("Appointment must be scheduled for a future date and time.");
+      setIsSlotAvailable(null);
+      return;
+    }
+
+    setConflictError(null);
+    setIsCheckingConflict(true);
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const hasConflict = await checkConflict(doctorId, appointmentDateTime.toISOString());
+        if (hasConflict) {
+          setConflictError("Doctor has another appointment at this time. Please choose a different time.");
+          setIsSlotAvailable(false);
+        } else {
+          setConflictError(null);
+          setIsSlotAvailable(true);
+        }
+      } catch {
+        setIsSlotAvailable(null);
+      } finally {
+        setIsCheckingConflict(false);
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      setIsCheckingConflict(false);
+    };
+  }, [formData.appointmentDate, formData.appointmentTime, formData.doctorId]);
+
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [doctorsRes, patientsRes] = await Promise.all([
+      const [doctorsRes, patientsRes, appointmentsRes] = await Promise.all([
         adminApi.getDoctors(),
         adminApi.getPatients(),
+        adminApi.getAppointments(),
       ]);
 
       if (doctorsRes.error) {
@@ -78,6 +151,12 @@ const ReceptionistScheduleAppointment = () => {
         toast.error(patientsRes.error);
       } else if (patientsRes.data) {
         setPatients(patientsRes.data as Patient[]);
+      }
+
+      if (appointmentsRes.error) {
+        toast.error(appointmentsRes.error);
+      } else if (appointmentsRes.data) {
+        setAppointments(Array.isArray(appointmentsRes.data) ? appointmentsRes.data : []);
       }
     } catch (error) {
       console.error("Failed to fetch data:", error);
@@ -103,6 +182,7 @@ const ReceptionistScheduleAppointment = () => {
     const doctor = doctors.find((d) => d.id === doctorId);
     setSelectedDoctor(doctor || null);
     setConflictError(null);
+    setIsSlotAvailable(null);
   };
 
   const handlePatientSelect = (patientId: string) => {
@@ -147,6 +227,11 @@ const ReceptionistScheduleAppointment = () => {
 
     if (appointmentDateTime <= now) {
       toast.error("Appointment must be scheduled for a future date and time");
+      return;
+    }
+
+    if (isSlotAvailable === false) {
+      toast.error("Please choose a conflict-free time slot before scheduling.");
       return;
     }
 
@@ -211,6 +296,56 @@ const ReceptionistScheduleAppointment = () => {
 
   // Get minimum date (today)
   const today = new Date().toISOString().split("T")[0];
+  const selectedDate = formData.appointmentDate || today;
+
+  const filteredDoctors = doctors.filter((doctor) => {
+    const query = doctorSearchTerm.toLowerCase().trim();
+    if (!query) return true;
+
+    return (
+      `${doctor.first_name} ${doctor.last_name}`.toLowerCase().includes(query) ||
+      doctor.specialization?.toLowerCase().includes(query) ||
+      doctor.phone?.toLowerCase().includes(query)
+    );
+  });
+
+  const filteredPatients = patients.filter((patient) => {
+    const query = patientSearchTerm.toLowerCase().trim();
+    if (!query) return true;
+
+    return (
+      `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(query) ||
+      patient.phone?.toLowerCase().includes(query) ||
+      patient.email?.toLowerCase().includes(query)
+    );
+  });
+
+  const visibleDoctors = filteredDoctors.slice(0, visibleDoctorCount);
+  const visiblePatients = filteredPatients.slice(0, visiblePatientCount);
+
+  const scheduleAppointments = appointments
+    .filter((appointment) => {
+      const appointmentDate = new Date(appointment.appointment_date);
+      const appointmentDay = new Date(
+        appointmentDate.getTime() - appointmentDate.getTimezoneOffset() * 60000
+      )
+        .toISOString()
+        .split("T")[0];
+
+      if (appointmentDay !== selectedDate) {
+        return false;
+      }
+
+      if (!formData.doctorId) {
+        return true;
+      }
+
+      return appointment.doctor_id === formData.doctorId;
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime()
+    );
 
   return (
     <SimpleDashboardLayout
@@ -245,16 +380,29 @@ const ReceptionistScheduleAppointment = () => {
                   <Users className="w-5 h-5" />
                   Select a Doctor
                 </CardTitle>
-                <CardDescription>Choose the doctor for this appointment</CardDescription>
+                <CardDescription>Search and select a doctor for this appointment</CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={doctorSearchTerm}
+                    onChange={(event) => setDoctorSearchTerm(event.target.value)}
+                    placeholder="Search by doctor name, specialization, or phone"
+                    className="pl-9"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Showing {visibleDoctors.length} of {filteredDoctors.length} doctors
+                </p>
                 {isLoading ? (
                   <p className="text-muted-foreground text-center py-8">Loading doctors...</p>
                 ) : doctors.length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">No doctors available</p>
                 ) : (
-                  <div className="grid gap-3">
-                    {doctors.map((doctor) => (
+                  <>
+                    <div className="grid gap-3 max-h-[380px] overflow-y-auto pr-1">
+                      {visibleDoctors.map((doctor) => (
                       <div
                         key={doctor.id}
                         onClick={() => handleDoctorSelect(doctor.id)}
@@ -295,7 +443,18 @@ const ReceptionistScheduleAppointment = () => {
                         </div>
                       </div>
                     ))}
-                  </div>
+                    </div>
+                    {filteredDoctors.length > visibleDoctorCount && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full mt-3"
+                        onClick={() => setVisibleDoctorCount((prev) => prev + 8)}
+                      >
+                        Show More Doctors
+                      </Button>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -307,16 +466,29 @@ const ReceptionistScheduleAppointment = () => {
                   <Users className="w-5 h-5" />
                   Select a Patient
                 </CardTitle>
-                <CardDescription>Choose the patient for this appointment</CardDescription>
+                <CardDescription>Search and select a patient from the registry</CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={patientSearchTerm}
+                    onChange={(event) => setPatientSearchTerm(event.target.value)}
+                    placeholder="Search by patient name, email, or phone"
+                    className="pl-9"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Showing {visiblePatients.length} of {filteredPatients.length} patients
+                </p>
                 {isLoading ? (
                   <p className="text-muted-foreground text-center py-8">Loading patients...</p>
                 ) : patients.length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">No patients available</p>
                 ) : (
-                  <div className="grid gap-3">
-                    {patients.map((patient) => (
+                  <>
+                    <div className="grid gap-3 max-h-[380px] overflow-y-auto pr-1">
+                      {visiblePatients.map((patient) => (
                       <div
                         key={patient.id}
                         onClick={() => handlePatientSelect(patient.id)}
@@ -361,14 +533,76 @@ const ReceptionistScheduleAppointment = () => {
                         </div>
                       </div>
                     ))}
-                  </div>
+                    </div>
+                    {filteredPatients.length > visiblePatientCount && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full mt-3"
+                        onClick={() => setVisiblePatientCount((prev) => prev + 8)}
+                      >
+                        Show More Patients
+                      </Button>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
           </div>
 
           {/* Right Section - Appointment Details */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Schedule Board
+                </CardTitle>
+                <CardDescription>
+                  {formData.doctorId
+                    ? `Appointments for selected doctor on ${new Date(selectedDate).toLocaleDateString()}`
+                    : `All doctors on ${new Date(selectedDate).toLocaleDateString()}`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <p className="text-muted-foreground">Loading schedule...</p>
+                ) : scheduleAppointments.length === 0 ? (
+                  <p className="text-muted-foreground">No appointments for this day.</p>
+                ) : (
+                  <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+                    {scheduleAppointments.slice(0, 12).map((appointment) => (
+                      <div key={appointment.id} className="rounded-lg border p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold">
+                              {new Date(appointment.appointment_date).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {appointment.patient_first_name} {appointment.patient_last_name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Dr. {appointment.doctor_first_name} {appointment.doctor_last_name}
+                            </p>
+                          </div>
+                          <Badge
+                            className={`${appointmentStatusColors[
+                              appointment.status as keyof typeof appointmentStatusColors
+                            ] || "bg-muted text-foreground"}`}
+                          >
+                            {appointment.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card className="sticky top-24">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -424,6 +658,12 @@ const ReceptionistScheduleAppointment = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    {isCheckingConflict && (
+                      <p className="text-xs text-muted-foreground">Checking slot availability...</p>
+                    )}
+                    {!isCheckingConflict && isSlotAvailable === true && !conflictError && (
+                      <p className="text-xs text-success">This time slot is available.</p>
+                    )}
                   </div>
 
                   {/* Reason */}
