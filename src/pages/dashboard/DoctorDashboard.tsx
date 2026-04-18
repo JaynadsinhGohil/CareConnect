@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Calendar, FileText, Users, Clock, PenSquare, XCircle, CheckCircle2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Calendar, FileText, Users, Clock, PenSquare, XCircle, CheckCircle2, Activity, AlertTriangle, ClipboardCheck } from "lucide-react";
 import SimpleDashboardLayout from "@/components/dashboard/SimpleDashboardLayout";
 import StatCard from "@/components/dashboard/StatCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,12 +14,78 @@ import { doctorApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
-const statusColors = {
+const appointmentStatusColors = {
   completed: "bg-success/10 text-success border-success/20",
   "in-progress": "bg-warning/10 text-warning border-warning/20",
   scheduled: "bg-secondary text-muted-foreground border-border",
   cancelled: "bg-destructive/10 text-destructive border-destructive/20",
   "no-show": "bg-accent/10 text-accent border-accent/20",
+};
+
+type TreatmentStatus =
+  | "new-case"
+  | "under-treatment"
+  | "improving"
+  | "follow-up-required"
+  | "chronic-monitoring"
+  | "treatment-completed";
+
+const treatmentStatusAliasMap: Record<string, TreatmentStatus> = {
+  "new-case": "new-case",
+  "new case": "new-case",
+  "under-treatment": "under-treatment",
+  "under treatment": "under-treatment",
+  "under_treatment": "under-treatment",
+  improving: "improving",
+  "follow-up-required": "follow-up-required",
+  "follow up required": "follow-up-required",
+  "follow_up_required": "follow-up-required",
+  "chronic-monitoring": "chronic-monitoring",
+  "chronic monitoring": "chronic-monitoring",
+  "chronic_monitoring": "chronic-monitoring",
+  "treatment-completed": "treatment-completed",
+  "treatment completed": "treatment-completed",
+  completed: "treatment-completed",
+  discharged: "treatment-completed",
+};
+
+const normalizeTreatmentStatus = (value: unknown): TreatmentStatus => {
+  if (typeof value !== "string") {
+    return "new-case";
+  }
+
+  return treatmentStatusAliasMap[value.trim().toLowerCase()] || "new-case";
+};
+
+const treatmentStatusColors: Record<TreatmentStatus, string> = {
+  "new-case": "bg-slate-100 text-slate-700 border-slate-200",
+  "under-treatment": "bg-blue-100 text-blue-700 border-blue-200",
+  improving: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  "follow-up-required": "bg-amber-100 text-amber-700 border-amber-200",
+  "chronic-monitoring": "bg-violet-100 text-violet-700 border-violet-200",
+  "treatment-completed": "bg-teal-100 text-teal-700 border-teal-200",
+};
+
+const treatmentStatusLabels: Record<TreatmentStatus, string> = {
+  "new-case": "New Case",
+  "under-treatment": "Under Treatment",
+  improving: "Improving",
+  "follow-up-required": "Follow-up Required",
+  "chronic-monitoring": "Chronic Monitoring",
+  "treatment-completed": "Treatment Completed",
+};
+
+const normalizeDateForInput = (value?: string | null) => {
+  if (!value) {
+    return "";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return parsed.toISOString().slice(0, 10);
 };
 
 const COMMENT_LABEL = "Doctor Comment:";
@@ -76,6 +142,11 @@ const DoctorDashboard = () => {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
   const [records, setRecords] = useState<any[]>([]);
+  const [appointmentFilter, setAppointmentFilter] = useState<"all" | "today" | "upcoming" | "past" | "scheduled" | "completed" | "cancelled">("all");
+  const [patientStatusFilter, setPatientStatusFilter] = useState<"all" | TreatmentStatus>("all");
+  const [appointmentSearch, setAppointmentSearch] = useState("");
+  const [patientSearch, setPatientSearch] = useState("");
+  const [recordSearch, setRecordSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPatientId, setSelectedPatientId] = useState("");
   const [selectedPatientName, setSelectedPatientName] = useState("");
@@ -83,6 +154,7 @@ const DoctorDashboard = () => {
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [isPatientDetailsOpen, setIsPatientDetailsOpen] = useState(false);
   const [isClinicalDialogOpen, setIsClinicalDialogOpen] = useState(false);
+  const [isTreatmentDialogOpen, setIsTreatmentDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [clinicalForm, setClinicalForm] = useState({
@@ -91,6 +163,20 @@ const DoctorDashboard = () => {
     tests: "",
     medications: "",
     attachments: [] as AttachmentItem[],
+  });
+
+  const [treatmentForm, setTreatmentForm] = useState<{
+    patientId: string;
+    patientName: string;
+    status: TreatmentStatus;
+    followUpDate: string;
+    dischargeSummary: string;
+  }>({
+    patientId: "",
+    patientName: "",
+    status: "under-treatment",
+    followUpDate: "",
+    dischargeSummary: "",
   });
 
   const fetchDashboardData = async () => {
@@ -104,7 +190,7 @@ const DoctorDashboard = () => {
       ]);
 
       if (profileRes.data) setProfile(profileRes.data);
-      if (appointmentsRes.data) setAppointments(appointmentsRes.data);
+      if (appointmentsRes.data) setAppointments(Array.isArray(appointmentsRes.data) ? appointmentsRes.data : []);
       if (patientsRes.data) setPatients(Array.isArray(patientsRes.data) ? patientsRes.data : []);
       if (recordsRes.data) setRecords(Array.isArray(recordsRes.data) ? recordsRes.data : []);
 
@@ -124,10 +210,76 @@ const DoctorDashboard = () => {
 
   const today = toDateOnly(new Date());
   const scheduledCount = appointments.filter((a) => a.status === "scheduled").length;
-  const completedCount = appointments.filter((a) => a.status === "completed").length;
   const todayAppointments = appointments.filter((a) => toDateOnly(new Date(a.appointment_date)).getTime() === today.getTime());
   const futureAppointments = appointments.filter((a) => toDateOnly(new Date(a.appointment_date)).getTime() > today.getTime());
   const pastAppointments = appointments.filter((a) => toDateOnly(new Date(a.appointment_date)).getTime() < today.getTime() || a.status === "completed");
+
+  const underTreatmentCount = patients.filter((p) => ["under-treatment", "improving", "follow-up-required", "chronic-monitoring"].includes(normalizeTreatmentStatus(p.treatment_status))).length;
+  const followUpDueTodayCount = patients.filter((p) => {
+    if (!p.follow_up_date || normalizeTreatmentStatus(p.treatment_status) === "treatment-completed") return false;
+    return toDateOnly(new Date(p.follow_up_date)).getTime() === today.getTime();
+  }).length;
+  const followUpOverdueCount = patients.filter((p) => {
+    if (!p.follow_up_date || normalizeTreatmentStatus(p.treatment_status) === "treatment-completed") return false;
+    return toDateOnly(new Date(p.follow_up_date)).getTime() < today.getTime();
+  }).length;
+  const completedTreatmentCount = patients.filter((p) => normalizeTreatmentStatus(p.treatment_status) === "treatment-completed").length;
+
+  const normalizedAppointmentSearch = appointmentSearch.trim().toLowerCase();
+  const filteredAppointments = appointments
+    .filter((appointment) => {
+      const appointmentDay = toDateOnly(new Date(appointment.appointment_date)).getTime();
+
+      if (appointmentFilter === "today") return appointmentDay === today.getTime();
+      if (appointmentFilter === "upcoming") return appointmentDay > today.getTime();
+      if (appointmentFilter === "past") return appointmentDay < today.getTime() || appointment.status === "completed";
+      if (appointmentFilter === "scheduled") return appointment.status === "scheduled";
+      if (appointmentFilter === "completed") return appointment.status === "completed";
+      if (appointmentFilter === "cancelled") return appointment.status === "cancelled";
+      return true;
+    })
+    .filter((appointment) => {
+      if (!normalizedAppointmentSearch) return true;
+
+      const searchableText = `${appointment.patient_first_name || ""} ${appointment.patient_last_name || ""} ${appointment.reason_for_visit || ""}`.toLowerCase();
+      return searchableText.includes(normalizedAppointmentSearch);
+    });
+
+  const normalizedPatientSearch = patientSearch.trim().toLowerCase();
+  const filteredPatients = patients
+    .filter((patient) => {
+      if (patientStatusFilter === "all") return true;
+      return normalizeTreatmentStatus(patient.treatment_status) === patientStatusFilter;
+    })
+    .filter((patient) => {
+      if (!normalizedPatientSearch) return true;
+
+      const searchableText = `${patient.first_name || ""} ${patient.last_name || ""} ${patient.email || ""} ${patient.phone || ""}`.toLowerCase();
+      return searchableText.includes(normalizedPatientSearch);
+    });
+
+  const normalizedRecordSearch = recordSearch.trim().toLowerCase();
+  const filteredRecords = records.filter((record) => {
+    if (!normalizedRecordSearch) return true;
+
+    const searchableText = `${record.patient_first_name || ""} ${record.patient_last_name || ""} ${record.diagnosis || ""} ${record.medications || ""} ${record.treatment_plan || ""}`.toLowerCase();
+    return searchableText.includes(normalizedRecordSearch);
+  });
+
+  const followUpQueue = useMemo(() => {
+    const withFollowUp = patients
+      .filter((patient) => patient.follow_up_date && normalizeTreatmentStatus(patient.treatment_status) !== "treatment-completed")
+      .map((patient) => ({
+        ...patient,
+        followUpTime: toDateOnly(new Date(patient.follow_up_date)).getTime(),
+      }))
+      .sort((a, b) => a.followUpTime - b.followUpTime);
+
+    return {
+      overdue: withFollowUp.filter((patient) => patient.followUpTime < today.getTime()).slice(0, 5),
+      dueToday: withFollowUp.filter((patient) => patient.followUpTime === today.getTime()).slice(0, 5),
+    };
+  }, [patients, today]);
 
   const uniquePatients = appointments.reduce((acc: any[], apt: any) => {
     if (!acc.find((p) => p.patient_id === apt.patient_id)) {
@@ -139,6 +291,32 @@ const DoctorDashboard = () => {
     }
     return acc;
   }, []);
+
+  const patientTimeline = useMemo(() => {
+    if (!selectedPatient) return [] as Array<{ id: string; type: "appointment" | "record"; date: Date; label: string; meta: string }>;
+
+    const appointmentItems = appointments
+      .filter((appointment) => appointment.patient_id === selectedPatient.id)
+      .map((appointment) => ({
+        id: `apt-${appointment.id}`,
+        type: "appointment" as const,
+        date: new Date(appointment.appointment_date),
+        label: `Appointment: ${appointment.reason_for_visit || "General consultation"}`,
+        meta: appointment.status,
+      }));
+
+    const recordItems = records
+      .filter((record) => record.patient_id === selectedPatient.id)
+      .map((record) => ({
+        id: `rec-${record.id}`,
+        type: "record" as const,
+        date: new Date(record.updated_at || record.created_at),
+        label: `Clinical update: ${record.diagnosis || "N/A"}`,
+        meta: "record",
+      }));
+
+    return [...appointmentItems, ...recordItems].sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [appointments, records, selectedPatient]);
 
   const resetClinicalForm = () => {
     setClinicalForm({ diagnosis: "", comment: "", tests: "", medications: "", attachments: [] });
@@ -172,6 +350,17 @@ const DoctorDashboard = () => {
       attachments: Array.isArray(record.attachments) ? record.attachments : [],
     });
     setIsClinicalDialogOpen(true);
+  };
+
+  const openTreatmentDialog = (patient: any, status: TreatmentStatus) => {
+    setTreatmentForm({
+      patientId: patient.id,
+      patientName: `${patient.first_name || ""} ${patient.last_name || ""}`.trim() || "Patient",
+      status,
+      followUpDate: normalizeDateForInput(patient.follow_up_date),
+      dischargeSummary: status === "treatment-completed" ? patient.discharge_summary || "" : "",
+    });
+    setIsTreatmentDialogOpen(true);
   };
 
   const handleAttachmentUpload = async (files: FileList | null) => {
@@ -258,13 +447,52 @@ const DoctorDashboard = () => {
     }
   };
 
+  const handleSaveTreatmentStatus = async () => {
+    if (!treatmentForm.patientId) {
+      toast.error("Select a valid patient.");
+      return;
+    }
+
+    if (treatmentForm.status === "treatment-completed" && !treatmentForm.dischargeSummary.trim()) {
+      toast.error("Discharge summary is required to mark treatment completed.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await doctorApi.updatePatientTreatmentStatus(treatmentForm.patientId, {
+        status: normalizeTreatmentStatus(treatmentForm.status),
+        followUpDate: treatmentForm.followUpDate || null,
+        dischargeSummary: treatmentForm.dischargeSummary || null,
+      });
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      await fetchDashboardData();
+      if (selectedPatient?.id === treatmentForm.patientId) {
+        const refreshed = patients.find((p) => p.id === treatmentForm.patientId);
+        if (refreshed) {
+          setSelectedPatient(refreshed);
+        }
+      }
+      setIsTreatmentDialogOpen(false);
+      toast.success("Patient treatment status updated.");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update treatment status.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <SimpleDashboardLayout role="doctor" userName={`Dr. ${user?.lastName}`} userId={user?.id?.substring(0, 8) || "DR-00"}>
       <div className="space-y-6 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Good Morning, Dr. {user?.lastName}</h1>
-            <p className="text-muted-foreground">You have {scheduledCount} appointments scheduled.</p>
+            <h1 className="text-2xl font-bold text-foreground">Doctor Care Command Center</h1>
+            <p className="text-muted-foreground">{scheduledCount} scheduled appointments and {followUpOverdueCount} overdue follow-ups require review.</p>
           </div>
           <Button
             variant="hero"
@@ -287,32 +515,32 @@ const DoctorDashboard = () => {
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
-            title="Today's Appointments"
-            value={todayAppointments.length.toString()}
-            icon={<Users className="w-6 h-6" />}
-            description={`${futureAppointments.length} upcoming`}
+            title="Under Treatment"
+            value={underTreatmentCount.toString()}
+            icon={<Activity className="w-6 h-6" />}
+            description="Active care episodes"
             variant="primary"
           />
           <StatCard
-            title="Total Appointments"
-            value={appointments.length.toString()}
-            icon={<Calendar className="w-6 h-6" />}
-            description={`${pastAppointments.length} past`}
-            variant="success"
-          />
-          <StatCard
-            title="Clinical Updates"
-            value={records.length.toString()}
-            icon={<FileText className="w-6 h-6" />}
-            description="Reports + medicines + comments"
+            title="Follow-up Due Today"
+            value={followUpDueTodayCount.toString()}
+            icon={<Clock className="w-6 h-6" />}
+            description="Needs doctor review"
             variant="warning"
           />
           <StatCard
-            title="Specialization"
-            value={profile?.specialization || "---"}
-            icon={<Clock className="w-6 h-6" />}
-            description={`Exp: ${profile?.years_experience || 0} years`}
+            title="Overdue Follow-ups"
+            value={followUpOverdueCount.toString()}
+            icon={<AlertTriangle className="w-6 h-6" />}
+            description="High-priority queue"
             variant="accent"
+          />
+          <StatCard
+            title="Completed Cases"
+            value={completedTreatmentCount.toString()}
+            icon={<ClipboardCheck className="w-6 h-6" />}
+            description="Marked fit/discharged"
+            variant="success"
           />
         </div>
 
@@ -324,15 +552,41 @@ const DoctorDashboard = () => {
                   <CardTitle>Your Appointments</CardTitle>
                   <CardDescription>Present, past, and future appointments with management</CardDescription>
                 </div>
-                <Button variant="ghost" size="sm">View Full Calendar</Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setAppointmentFilter("today");
+                    setAppointmentSearch("");
+                    toast.info("Showing today's appointments.");
+                  }}
+                >
+                  Focus Today
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
+              <div className="space-y-3 mb-4">
+                <Input
+                  value={appointmentSearch}
+                  onChange={(e) => setAppointmentSearch(e.target.value)}
+                  placeholder="Search by patient or visit reason"
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant={appointmentFilter === "all" ? "default" : "outline"} onClick={() => setAppointmentFilter("all")}>All</Button>
+                  <Button size="sm" variant={appointmentFilter === "today" ? "default" : "outline"} onClick={() => setAppointmentFilter("today")}>Today</Button>
+                  <Button size="sm" variant={appointmentFilter === "upcoming" ? "default" : "outline"} onClick={() => setAppointmentFilter("upcoming")}>Upcoming</Button>
+                  <Button size="sm" variant={appointmentFilter === "past" ? "default" : "outline"} onClick={() => setAppointmentFilter("past")}>Past</Button>
+                  <Button size="sm" variant={appointmentFilter === "scheduled" ? "default" : "outline"} onClick={() => setAppointmentFilter("scheduled")}>Scheduled</Button>
+                  <Button size="sm" variant={appointmentFilter === "completed" ? "default" : "outline"} onClick={() => setAppointmentFilter("completed")}>Completed</Button>
+                  <Button size="sm" variant={appointmentFilter === "cancelled" ? "default" : "outline"} onClick={() => setAppointmentFilter("cancelled")}>Cancelled</Button>
+                </div>
+              </div>
               {isLoading ? (
                 <p className="text-muted-foreground">Loading...</p>
-              ) : appointments.length > 0 ? (
+              ) : filteredAppointments.length > 0 ? (
                 <div className="space-y-3">
-                  {appointments.slice(0, 12).map((appointment) => (
+                  {filteredAppointments.slice(0, 12).map((appointment) => (
                     <div key={appointment.id} className="flex items-center justify-between p-4 rounded-xl border bg-card hover:shadow-sm transition-all">
                       <div className="flex items-center gap-4">
                         <Avatar className="h-10 w-10">
@@ -350,7 +604,7 @@ const DoctorDashboard = () => {
                             {toDateOnly(new Date(appointment.appointment_date)).getTime() > today.getTime()
                               ? "Future"
                               : toDateOnly(new Date(appointment.appointment_date)).getTime() === today.getTime()
-                                ? "Present"
+                                ? "Today"
                                 : "Past"}
                           </p>
                         </div>
@@ -359,7 +613,7 @@ const DoctorDashboard = () => {
                         <p className="font-medium text-foreground text-sm">
                           {new Date(appointment.appointment_date).toLocaleDateString()}
                         </p>
-                        <Badge className={`${statusColors[appointment.status as keyof typeof statusColors]} border`}>
+                        <Badge className={`${appointmentStatusColors[appointment.status as keyof typeof appointmentStatusColors]} border`}>
                           {appointment.status}
                         </Badge>
                         <div className="flex gap-2 justify-end">
@@ -389,40 +643,141 @@ const DoctorDashboard = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground">No appointments scheduled</p>
+                <p className="text-muted-foreground">No appointments found for this filter/search.</p>
               )}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Recent Patients</CardTitle>
-              <CardDescription>View patient details and then write clinical updates</CardDescription>
+              <CardTitle>Follow-up Queue</CardTitle>
+              <CardDescription>Patients requiring immediate continuity of care</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {patients.slice(0, 6).map((patient) => (
-                <div key={patient.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors">
-                  <Avatar className="h-9 w-9">
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                      {patient.first_name?.[0]}
-                      {patient.last_name?.[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {patient.first_name} {patient.last_name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Patient</p>
+              <div>
+                <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Overdue</p>
+                {followUpQueue.overdue.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No overdue patients.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {followUpQueue.overdue.map((patient) => (
+                      <div key={`overdue-${patient.id}`} className="border rounded-lg p-2">
+                        <p className="text-sm font-medium">{patient.first_name} {patient.last_name}</p>
+                        <p className="text-xs text-muted-foreground">Due: {new Date(patient.follow_up_date).toLocaleDateString()}</p>
+                        <Button size="sm" variant="link" className="h-auto p-0 mt-1" onClick={() => openPatientDetails(patient.id)}>
+                          Open details
+                        </Button>
+                      </div>
+                    ))}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openPatientDetails(patient.id)}
-                  >
-                    Details
-                  </Button>
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Due Today</p>
+                {followUpQueue.dueToday.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No follow-ups due today.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {followUpQueue.dueToday.map((patient) => (
+                      <div key={`due-${patient.id}`} className="border rounded-lg p-2">
+                        <p className="text-sm font-medium">{patient.first_name} {patient.last_name}</p>
+                        <p className="text-xs text-muted-foreground">Today follow-up</p>
+                        <Button size="sm" variant="link" className="h-auto p-0 mt-1" onClick={() => openPatientDetails(patient.id)}>
+                          Open details
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Patient Care Tracking</CardTitle>
+              <CardDescription>Track treatment status, follow-ups, and discharge readiness</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Input
+                value={patientSearch}
+                onChange={(e) => setPatientSearch(e.target.value)}
+                placeholder="Search patients by name, email, or phone"
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant={patientStatusFilter === "all" ? "default" : "outline"} onClick={() => setPatientStatusFilter("all")}>All</Button>
+                <Button size="sm" variant={patientStatusFilter === "new-case" ? "default" : "outline"} onClick={() => setPatientStatusFilter("new-case")}>New Case</Button>
+                <Button size="sm" variant={patientStatusFilter === "under-treatment" ? "default" : "outline"} onClick={() => setPatientStatusFilter("under-treatment")}>Under Treatment</Button>
+                <Button size="sm" variant={patientStatusFilter === "follow-up-required" ? "default" : "outline"} onClick={() => setPatientStatusFilter("follow-up-required")}>Follow-up Required</Button>
+                <Button size="sm" variant={patientStatusFilter === "improving" ? "default" : "outline"} onClick={() => setPatientStatusFilter("improving")}>Improving</Button>
+                <Button size="sm" variant={patientStatusFilter === "chronic-monitoring" ? "default" : "outline"} onClick={() => setPatientStatusFilter("chronic-monitoring")}>Chronic Monitoring</Button>
+                <Button size="sm" variant={patientStatusFilter === "treatment-completed" ? "default" : "outline"} onClick={() => setPatientStatusFilter("treatment-completed")}>Completed</Button>
+              </div>
+              {filteredPatients.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No patients found for this filter/search.</p>
+              ) : (
+                <div className="space-y-3">
+                  {filteredPatients.slice(0, 10).map((patient) => {
+                    const status = normalizeTreatmentStatus(patient.treatment_status);
+                    return (
+                      <div key={patient.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9">
+                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                              {patient.first_name?.[0]}
+                              {patient.last_name?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-medium">{patient.first_name} {patient.last_name}</p>
+                            <p className="text-xs text-muted-foreground">{patient.email || "No email"}</p>
+                            {patient.follow_up_date ? (
+                              <p className="text-xs text-muted-foreground">Follow-up: {new Date(patient.follow_up_date).toLocaleDateString()}</p>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="text-right space-y-2">
+                          <Badge className={`${treatmentStatusColors[status]} border`}>
+                            {treatmentStatusLabels[status]}
+                          </Badge>
+                          <div>
+                            <Button size="sm" variant="outline" onClick={() => openPatientDetails(patient.id)}>
+                              Details
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Appointment Snapshot</CardTitle>
+              <CardDescription>Quick operational metrics for today and upcoming slots</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/40">
+                <span className="text-muted-foreground">Today's appointments</span>
+                <span className="font-semibold">{todayAppointments.length}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/40">
+                <span className="text-muted-foreground">Upcoming appointments</span>
+                <span className="font-semibold">{futureAppointments.length}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/40">
+                <span className="text-muted-foreground">Past appointments</span>
+                <span className="font-semibold">{pastAppointments.length}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/40">
+                <span className="text-muted-foreground">Specialization</span>
+                <span className="font-semibold">{profile?.specialization || "---"}</span>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -431,14 +786,21 @@ const DoctorDashboard = () => {
           <CardHeader>
             <CardTitle>All Clinical Updates</CardTitle>
             <CardDescription>
-              Unified entries for report comments, prescribed medicines, doses, and tests (blood test, urine test, etc.)
+              Unified entries for report comments, prescribed medicines, doses, and tests
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {records.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No clinical updates created yet.</p>
+            <Input
+              value={recordSearch}
+              onChange={(e) => setRecordSearch(e.target.value)}
+              placeholder="Search updates by patient, diagnosis, medicine, or note"
+            />
+            {filteredRecords.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {records.length === 0 ? "No clinical updates created yet." : "No clinical updates found for this search."}
+              </p>
             ) : (
-              records.slice(0, 8).map((record) => {
+              filteredRecords.slice(0, 8).map((record) => {
                 const parsed = parseTreatmentPlan(record.treatment_plan || "");
                 return (
                   <div key={record.id} className="p-4 border rounded-lg bg-card">
@@ -553,14 +915,76 @@ const DoctorDashboard = () => {
           </DialogContent>
         </Dialog>
 
+        <Dialog open={isTreatmentDialogOpen} onOpenChange={setIsTreatmentDialogOpen}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Update Treatment Status</DialogTitle>
+              <DialogDescription>
+                Update care lifecycle for {treatmentForm.patientName}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Status</Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {Object.keys(treatmentStatusLabels).map((statusKey) => {
+                    const value = statusKey as TreatmentStatus;
+                    return (
+                      <Button
+                        key={value}
+                        size="sm"
+                        variant={treatmentForm.status === value ? "default" : "outline"}
+                        onClick={() => setTreatmentForm((prev) => ({ ...prev, status: value }))}
+                        type="button"
+                      >
+                        {treatmentStatusLabels[value]}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <Label>Next Follow-up Date</Label>
+                <Input
+                  type="date"
+                  value={treatmentForm.followUpDate}
+                  onChange={(e) => setTreatmentForm((prev) => ({ ...prev, followUpDate: e.target.value }))}
+                />
+              </div>
+              {treatmentForm.status === "treatment-completed" ? (
+                <div>
+                  <Label>Discharge Summary (required)</Label>
+                  <Textarea
+                    value={treatmentForm.dischargeSummary}
+                    onChange={(e) => setTreatmentForm((prev) => ({ ...prev, dischargeSummary: e.target.value }))}
+                    placeholder="Final diagnosis, outcome, medicines stopped/continued, and warning signs"
+                  />
+                </div>
+              ) : null}
+              <Button className="w-full" onClick={handleSaveTreatmentStatus} disabled={isSubmitting}>
+                {isSubmitting ? "Saving..." : "Save Treatment Status"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={isPatientDetailsOpen} onOpenChange={setIsPatientDetailsOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>Patient Details</DialogTitle>
-              <DialogDescription>Patient profile, illness history, and quick clinical action</DialogDescription>
+              <DialogDescription>Patient profile, care status, and timeline across visits</DialogDescription>
             </DialogHeader>
             {selectedPatient ? (
               <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className={`${treatmentStatusColors[normalizeTreatmentStatus(selectedPatient.treatment_status)]} border`}>
+                    {treatmentStatusLabels[normalizeTreatmentStatus(selectedPatient.treatment_status)]}
+                  </Badge>
+                  {selectedPatient.follow_up_date ? (
+                    <Badge variant="outline">Follow-up: {new Date(selectedPatient.follow_up_date).toLocaleDateString()}</Badge>
+                  ) : null}
+                </div>
+
                 <div className="grid md:grid-cols-2 gap-4 text-sm">
                   <p><span className="font-medium">Name:</span> {selectedPatient.first_name} {selectedPatient.last_name}</p>
                   <p><span className="font-medium">Email:</span> {selectedPatient.email || "N/A"}</p>
@@ -571,23 +995,33 @@ const DoctorDashboard = () => {
                 </div>
 
                 <div className="text-sm space-y-2">
-                  <p><span className="font-medium">Illness / Medical History:</span> {selectedPatient.medical_history || "N/A"}</p>
+                  <p><span className="font-medium">Medical History:</span> {selectedPatient.medical_history || "N/A"}</p>
                   <p><span className="font-medium">Allergies:</span> {selectedPatient.allergies || "N/A"}</p>
                   <p><span className="font-medium">Current Medications:</span> {selectedPatient.current_medications || "N/A"}</p>
+                  <p><span className="font-medium">Discharge Summary:</span> {selectedPatient.discharge_summary || "Not discharged yet"}</p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => openTreatmentDialog(selectedPatient, "follow-up-required")}>Mark Follow-up Required</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => openTreatmentDialog(selectedPatient, "improving")}>Mark Improving</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => openTreatmentDialog(selectedPatient, "under-treatment")}>Reopen / Continue Treatment</Button>
+                  <Button type="button" size="sm" onClick={() => openTreatmentDialog(selectedPatient, "treatment-completed")}>Mark Fit / Discharged</Button>
                 </div>
 
                 <div>
-                  <p className="font-medium text-sm mb-2">Appointments</p>
-                  <div className="space-y-2 max-h-48 overflow-auto">
-                    {appointments
-                      .filter((appointment) => appointment.patient_id === selectedPatient.id)
-                      .slice(0, 6)
-                      .map((appointment) => (
-                        <div key={appointment.id} className="p-2 border rounded text-xs">
-                          <p>{new Date(appointment.appointment_date).toLocaleDateString()} - {appointment.reason_for_visit || "General consultation"}</p>
-                          <Badge className={`mt-1 ${statusColors[appointment.status as keyof typeof statusColors]} border`}>{appointment.status}</Badge>
+                  <p className="font-medium text-sm mb-2">Care Timeline</p>
+                  <div className="space-y-2 max-h-56 overflow-auto">
+                    {patientTimeline.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No timeline entries available yet.</p>
+                    ) : (
+                      patientTimeline.slice(0, 12).map((item) => (
+                        <div key={item.id} className="p-2 border rounded text-xs">
+                          <p className="font-medium">{item.label}</p>
+                          <p className="text-muted-foreground">{item.date.toLocaleDateString()} {item.date.toLocaleTimeString()}</p>
+                          <p className="text-muted-foreground uppercase tracking-wide">{item.meta}</p>
                         </div>
-                      ))}
+                      ))
+                    )}
                   </div>
                 </div>
 

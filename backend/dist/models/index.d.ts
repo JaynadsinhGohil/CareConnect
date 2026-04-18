@@ -37,10 +37,13 @@ export declare const doctorModel: {
         pageSize: number;
     }>;
     getPatientsByDoctor: (doctorId: string) => Promise<any[]>;
+    hasPatient: (doctorId: string, patientId: string) => Promise<boolean>;
+    updatePatientTreatmentStatus: (patientId: string, status: "new-case" | "under-treatment" | "improving" | "follow-up-required" | "chronic-monitoring" | "treatment-completed", followUpDate?: string | null, dischargeSummary?: string | null) => Promise<any>;
 };
 export declare const patientModel: {
     create: (userId: string) => Promise<any>;
     findByUserId: (userId: string) => Promise<any>;
+    findById: (id: string) => Promise<any>;
     getAll: () => Promise<any[]>;
     getAllPaginated: (options: ListQueryOptions) => Promise<{
         items: any[];

@@ -126,6 +126,14 @@ export const doctorApi = {
   getProfile: () => apiClient.get('/doctors/profile'),
   getAppointments: () => apiClient.get('/doctors/appointments'),
   getPatients: () => apiClient.get('/doctors/patients'),
+  updatePatientTreatmentStatus: (
+    patientId: string,
+    data: {
+      status: 'new-case' | 'under-treatment' | 'improving' | 'follow-up-required' | 'chronic-monitoring' | 'treatment-completed';
+      followUpDate?: string | null;
+      dischargeSummary?: string | null;
+    }
+  ) => apiClient.patch(`/doctors/patients/${patientId}/treatment-status`, data),
   updateAppointmentStatus: (appointmentId: string, status: string) =>
     apiClient.patch(`/doctors/appointments/${appointmentId}/status`, { status }),
   getMedicalRecords: () => apiClient.get('/doctors/medical-records'),

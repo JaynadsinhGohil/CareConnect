@@ -45,6 +45,13 @@ export const initializeDatabase = async () => {
         medical_history TEXT,
         allergies TEXT,
         current_medications TEXT,
+        treatment_status VARCHAR(50) DEFAULT 'new-case' CHECK (
+          treatment_status IN ('new-case', 'under-treatment', 'improving', 'follow-up-required', 'chronic-monitoring', 'treatment-completed')
+        ),
+        follow_up_date DATE,
+        treatment_started_at TIMESTAMP,
+        treatment_completed_at TIMESTAMP,
+        discharge_summary TEXT,
         avatar_url VARCHAR(500),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -123,6 +130,17 @@ export const initializeDatabase = async () => {
       ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS metadata JSONB;
       ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
+      -- Backward-compatible migration for existing patients tables
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS treatment_status VARCHAR(50) DEFAULT 'new-case';
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS follow_up_date DATE;
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS treatment_started_at TIMESTAMP;
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS treatment_completed_at TIMESTAMP;
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS discharge_summary TEXT;
+
+      ALTER TABLE patients DROP CONSTRAINT IF EXISTS patients_treatment_status_check;
+      ALTER TABLE patients ADD CONSTRAINT patients_treatment_status_check
+      CHECK (treatment_status IN ('new-case', 'under-treatment', 'improving', 'follow-up-required', 'chronic-monitoring', 'treatment-completed'));
+
       -- Create indexes
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
@@ -136,6 +154,8 @@ export const initializeDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
       CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_user_id ON audit_logs(actor_user_id);
+      CREATE INDEX IF NOT EXISTS idx_patients_treatment_status ON patients(treatment_status);
+      CREATE INDEX IF NOT EXISTS idx_patients_follow_up_date ON patients(follow_up_date);
     `);
 
     console.log('Database initialized successfully');

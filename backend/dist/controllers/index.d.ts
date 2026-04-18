@@ -7,6 +7,7 @@ export declare const doctorController: {
     getAppointments: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
     getPatients: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
     updateAppointmentStatus: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+    updatePatientTreatmentStatus: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
 };
 export declare const patientController: {
     getAll: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;

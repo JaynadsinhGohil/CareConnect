@@ -3,6 +3,60 @@ import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database.js';
 import { doctorModel, appointmentModel, patientModel, medicalRecordModel, prescriptionModel, auditLogModel } from '../models/index.js';
 import { broadcastRealtimeEvent } from '../realtime/ws.js';
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const treatmentStatusAliases = {
+    'new-case': 'new-case',
+    'new case': 'new-case',
+    'under-treatment': 'under-treatment',
+    'under treatment': 'under-treatment',
+    'under_treatment': 'under-treatment',
+    improving: 'improving',
+    'follow-up-required': 'follow-up-required',
+    'follow up required': 'follow-up-required',
+    'follow_up_required': 'follow-up-required',
+    'chronic-monitoring': 'chronic-monitoring',
+    'chronic monitoring': 'chronic-monitoring',
+    'chronic_monitoring': 'chronic-monitoring',
+    'treatment-completed': 'treatment-completed',
+    'treatment completed': 'treatment-completed',
+    completed: 'treatment-completed',
+    discharged: 'treatment-completed',
+    'fit-discharged': 'treatment-completed',
+    'fit / discharged': 'treatment-completed',
+};
+const normalizeTreatmentStatus = (value) => {
+    if (!value || !value.trim()) {
+        return null;
+    }
+    return treatmentStatusAliases[value.trim().toLowerCase()] || null;
+};
+const normalizeFollowUpDate = (value) => {
+    if (!value || !value.trim()) {
+        return null;
+    }
+    const trimmed = value.trim();
+    // Accept YYYY-MM-DD directly.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        return trimmed;
+    }
+    // Accept DD-MM-YYYY and convert to ISO date.
+    if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
+        const [day, month, year] = trimmed.split('-').map(Number);
+        const parsed = new Date(Date.UTC(year, month - 1, day));
+        if (Number.isNaN(parsed.getTime()) ||
+            parsed.getUTCFullYear() !== year ||
+            parsed.getUTCMonth() !== month - 1 ||
+            parsed.getUTCDate() !== day) {
+            return undefined;
+        }
+        return parsed.toISOString().slice(0, 10);
+    }
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) {
+        return undefined;
+    }
+    return parsed.toISOString().slice(0, 10);
+};
 export const doctorController = {
     createStaff: async (req, res) => {
         try {
@@ -123,6 +177,57 @@ export const doctorController = {
         catch (error) {
             console.error('Update appointment error:', error);
             res.status(500).json({ error: 'Failed to update appointment' });
+        }
+    },
+    updatePatientTreatmentStatus: async (req, res) => {
+        try {
+            const { patientId } = req.params;
+            const { status, followUpDate, dischargeSummary } = req.body;
+            const normalizedStatus = normalizeTreatmentStatus(status);
+            if (!normalizedStatus) {
+                return res.status(400).json({ error: 'Invalid treatment status' });
+            }
+            if (!uuidPattern.test(patientId)) {
+                return res.status(400).json({ error: 'Invalid patient identifier' });
+            }
+            const normalizedFollowUpDate = normalizeFollowUpDate(followUpDate);
+            if (normalizedFollowUpDate === undefined) {
+                return res.status(400).json({ error: 'Invalid follow-up date format' });
+            }
+            if (normalizedStatus === 'treatment-completed' && !dischargeSummary?.trim()) {
+                return res.status(400).json({ error: 'Discharge summary is required to complete treatment' });
+            }
+            const isAdmin = req.role === 'admin';
+            let doctor = null;
+            if (!isAdmin) {
+                doctor = await doctorModel.findByUserId(req.userId);
+                if (!doctor) {
+                    return res.status(404).json({ error: 'Doctor not found' });
+                }
+            }
+            const hasAccess = isAdmin ? true : await doctorModel.hasPatient(doctor.id, patientId);
+            if (!hasAccess) {
+                return res.status(403).json({ error: 'You do not have access to update this patient' });
+            }
+            const updatedPatient = await doctorModel.updatePatientTreatmentStatus(patientId, normalizedStatus, normalizedFollowUpDate, dischargeSummary ?? null);
+            if (!updatedPatient) {
+                return res.status(404).json({ error: 'Patient not found' });
+            }
+            try {
+                await auditLogModel.create(req.userId || null, req.role || null, 'patient-treatment-status-updated', 'patient', patientId, {
+                    status: normalizedStatus,
+                    followUpDate: normalizedFollowUpDate,
+                    dischargeSummary: dischargeSummary || null,
+                });
+            }
+            catch (auditError) {
+                console.warn('Audit log failed for treatment status update:', auditError);
+            }
+            res.json(updatedPatient);
+        }
+        catch (error) {
+            console.error('Update patient treatment status error:', error);
+            res.status(500).json({ error: 'Failed to update patient treatment status' });
         }
     },
 };
@@ -320,6 +425,10 @@ export const medicalRecordController = {
                 return res.status(404).json({ error: 'Doctor not found' });
             }
             const record = await medicalRecordModel.create(patientId, doctor.id, appointmentId, diagnosis, treatment_plan, medications || '', Array.isArray(attachments) ? attachments : []);
+            const patientRecord = await patientModel.findById(patientId);
+            if (patientRecord && ['new-case', 'treatment-completed'].includes(patientRecord.treatment_status || 'new-case')) {
+                await doctorModel.updatePatientTreatmentStatus(patientId, 'under-treatment', null, null);
+            }
             res.status(201).json(record);
         }
         catch (error) {

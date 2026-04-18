@@ -133,6 +133,11 @@ export const doctorModel = {
           p.medical_history,
           p.allergies,
           p.current_medications,
+          p.treatment_status,
+          p.follow_up_date,
+          p.treatment_started_at,
+          p.treatment_completed_at,
+          p.discharge_summary,
           u.first_name,
           u.last_name,
           u.email,
@@ -145,6 +150,38 @@ export const doctorModel = {
       `, [doctorId]);
         return result.rows;
     },
+    hasPatient: async (doctorId, patientId) => {
+        const result = await pool.query(`
+        SELECT 1
+        FROM appointments
+        WHERE doctor_id = $1 AND patient_id = $2
+        LIMIT 1
+      `, [doctorId, patientId]);
+        return result.rows.length > 0;
+    },
+    updatePatientTreatmentStatus: async (patientId, status, followUpDate, dischargeSummary) => {
+        const result = await pool.query(`
+        UPDATE patients
+        SET treatment_status = $1::varchar,
+            follow_up_date = $2,
+            discharge_summary = CASE
+              WHEN $1::varchar = 'treatment-completed' THEN $3
+              ELSE COALESCE($3, discharge_summary)
+            END,
+            treatment_started_at = CASE
+              WHEN $1::varchar IN ('under-treatment', 'improving', 'follow-up-required', 'chronic-monitoring')
+                THEN COALESCE(treatment_started_at, CURRENT_TIMESTAMP)
+              ELSE treatment_started_at
+            END,
+            treatment_completed_at = CASE
+              WHEN $1::varchar = 'treatment-completed' THEN CURRENT_TIMESTAMP
+              ELSE NULL
+            END
+        WHERE id = $4
+        RETURNING *
+      `, [status, followUpDate ?? null, dischargeSummary ?? null, patientId]);
+        return result.rows[0];
+    },
 };
 export const patientModel = {
     create: async (userId) => {
@@ -154,6 +191,10 @@ export const patientModel = {
     },
     findByUserId: async (userId) => {
         const result = await pool.query('SELECT * FROM patients WHERE user_id = $1', [userId]);
+        return result.rows[0];
+    },
+    findById: async (id) => {
+        const result = await pool.query('SELECT * FROM patients WHERE id = $1', [id]);
         return result.rows[0];
     },
     getAll: async () => {

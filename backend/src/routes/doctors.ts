@@ -6,11 +6,16 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
+// Patients need this endpoint to select a doctor during appointment booking.
+router.get('/', roleMiddleware(['doctor', 'admin', 'patient']), doctorController.getAll);
+
+router.use(roleMiddleware(['doctor', 'admin']));
+
 // Doctor routes
-router.get('/', doctorController.getAll);
 router.get('/profile', doctorController.getProfile);
 router.get('/appointments', doctorController.getAppointments);
 router.get('/patients', doctorController.getPatients);
+router.patch('/patients/:patientId/treatment-status', doctorController.updatePatientTreatmentStatus);
 router.patch('/appointments/:appointmentId/status', doctorController.updateAppointmentStatus);
 
 // Medical records

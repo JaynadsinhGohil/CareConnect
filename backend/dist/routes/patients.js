@@ -1,11 +1,12 @@
 import express from 'express';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware, roleMiddleware } from '../middleware/auth.js';
 import { patientController } from '../controllers/index.js';
 const router = express.Router();
 // Public register endpoint (no auth required)
 router.post('/register', patientController.registerPatient);
 // Protected routes
 router.use(authMiddleware);
+router.use(roleMiddleware(['patient', 'admin']));
 // Patient routes
 router.get('/', patientController.getAll);
 router.get('/profile', patientController.getProfile);

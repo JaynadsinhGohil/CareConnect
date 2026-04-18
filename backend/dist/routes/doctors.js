@@ -1,13 +1,15 @@
 import express from 'express';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware, roleMiddleware } from '../middleware/auth.js';
 import { doctorController, medicalRecordController, prescriptionController } from '../controllers/index.js';
 const router = express.Router();
 router.use(authMiddleware);
+router.use(roleMiddleware(['doctor', 'admin']));
 // Doctor routes
 router.get('/', doctorController.getAll);
 router.get('/profile', doctorController.getProfile);
 router.get('/appointments', doctorController.getAppointments);
 router.get('/patients', doctorController.getPatients);
+router.patch('/patients/:patientId/treatment-status', doctorController.updatePatientTreatmentStatus);
 router.patch('/appointments/:appointmentId/status', doctorController.updateAppointmentStatus);
 // Medical records
 router.get('/medical-records', medicalRecordController.getAll);
