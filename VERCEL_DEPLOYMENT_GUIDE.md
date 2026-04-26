@@ -7,8 +7,8 @@ You have:
 - **Database**: Supabase PostgreSQL
 
 Your Supabase credentials:
-- **Project URL**: `https://jsucvnqdjbkydkgwmdrc.supabase.co`
-- **Publishable Key**: `sb_publishable_T1uC3Fyucu5MAtUADzP4kg_vcWio7I4`
+- **Project URL**: `https://your-project-ref.supabase.co`
+- **Publishable Key**: `sb_publishable_your_supabase_anon_key`
 
 ---
 
@@ -16,7 +16,7 @@ Your Supabase credentials:
 
 Go to your Supabase project:
 1. **Settings** → **Database** → **Connection Pooling** (or **Direct connection**)
-2. Copy the connection string (looks like: `postgresql://postgres:[PASSWORD]@db.jsucvnqdjbkydkgwmdrc.supabase.co:5432/postgres`)
+2. Copy the connection string (looks like: `postgresql://postgres:[PASSWORD]@db.your-project-ref.supabase.co:5432/postgres`)
 3. Replace `[PASSWORD]` with your Supabase database password (the one you set when creating the project)
 4. **Save this as `DB_CONNECTION_STRING` — you'll need it for backend deployment**
 
@@ -28,7 +28,7 @@ Go to your Supabase project:
 In `backend/.env`, set:
 ```
 PORT=5000
-DATABASE_URL=postgresql://postgres:[PASSWORD]@db.jsucvnqdjbkydkgwmdrc.supabase.co:5432/postgres
+DATABASE_URL=postgresql://postgres:[PASSWORD]@db.your-project-ref.supabase.co:5432/postgres
 JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
 JWT_EXPIRE=7d
 NODE_ENV=development
@@ -48,8 +48,8 @@ Test: Open `http://localhost:5000/api` (or your API endpoint) — it should work
 Your `.env.local` is already set:
 ```
 VITE_API_URL=http://localhost:5000/api
-VITE_SUPABASE_URL=https://jsucvnqdjbkydkgwmdrc.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_T1uC3Fyucu5MAtUADzP4kg_vcWio7I4
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_your_supabase_anon_key
 ```
 
 Run:
@@ -88,8 +88,8 @@ In Vercel project:
    | Name | Value | Scope |
    |------|-------|-------|
    | `VITE_API_URL` | `https://your-backend-url.com/api`* | Production, Preview, Development |
-   | `VITE_SUPABASE_URL` | `https://jsucvnqdjbkydkgwmdrc.supabase.co` | Production, Preview, Development |
-   | `VITE_SUPABASE_ANON_KEY` | `sb_publishable_T1uC3Fyucu5MAtUADzP4kg_vcWio7I4` | Production, Preview, Development |
+   | `VITE_SUPABASE_URL` | `https://your-project-ref.supabase.co` | Production, Preview, Development |
+   | `VITE_SUPABASE_ANON_KEY` | `sb_publishable_your_supabase_anon_key` | Production, Preview, Development |
 
    *After deploying backend, replace with actual backend URL (e.g., `https://careconnect-api.railway.app/api`)
 
@@ -116,7 +116,7 @@ In Vercel project:
 
    | Name | Value |
    |------|-------|
-   | `DATABASE_URL` | `postgresql://postgres:[PASSWORD]@db.jsucvnqdjbkydkgwmdrc.supabase.co:5432/postgres` |
+   | `DATABASE_URL` | `postgresql://postgres:[PASSWORD]@db.your-project-ref.supabase.co:5432/postgres` |
    | `JWT_SECRET` | `your-super-secret-key-here` |
    | `JWT_EXPIRE` | `7d` |
    | `NODE_ENV` | `production` |
@@ -145,7 +145,7 @@ URL format: `https://your-service-name-prod.up.railway.app`
 ## Troubleshooting
 
 ### Backend can't connect to Supabase
-- Check `DATABASE_URL` format: `postgresql://postgres:[PASSWORD]@db.jsucvnqdjbkydkgwmdrc.supabase.co:5432/postgres`
+- Check `DATABASE_URL` format: `postgresql://postgres:[PASSWORD]@db.your-project-ref.supabase.co:5432/postgres`
 - Verify password is correct
 - Ensure Supabase project is active (check Supabase dashboard)
 
@@ -170,13 +170,13 @@ URL format: `https://your-service-name-prod.up.railway.app`
 ### Frontend (Vercel → Environment Variables)
 ```
 VITE_API_URL=https://careconnect-api.onrender.com/api
-VITE_SUPABASE_URL=https://jsucvnqdjbkydkgwmdrc.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_T1uC3Fyucu5MAtUADzP4kg_vcWio7I4
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_your_supabase_anon_key
 ```
 
 ### Backend (Render → Environment)
 ```
-DATABASE_URL=postgresql://postgres:[PASSWORD]@db.jsucvnqdjbkydkgwmdrc.supabase.co:5432/postgres
+DATABASE_URL=postgresql://postgres:[PASSWORD]@db.your-project-ref.supabase.co:5432/postgres
 JWT_SECRET=your-secret-key
 JWT_EXPIRE=7d
 NODE_ENV=production

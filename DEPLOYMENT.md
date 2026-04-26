@@ -9,8 +9,8 @@
 - **Auth**: JWT-based authentication
 
 **Current Supabase Credentials:**
-- Project URL: `https://jsucvnqdjbkydkgwmdrc.supabase.co`
-- Publishable Key: `sb_publishable_T1uC3Fyucu5MAtUADzP4kg_vcWio7I4`
+- Project URL: `https://your-project-ref.supabase.co`
+- Publishable Key: `sb_publishable_your_supabase_anon_key`
 
 ---
 
@@ -56,8 +56,8 @@ cd ..
 # If not, create .env.local with:
 cat > .env.local << EOF
 VITE_API_URL=http://localhost:5000/api
-VITE_SUPABASE_URL=https://jsucvnqdjbkydkgwmdrc.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_T1uC3Fyucu5MAtUADzP4kg_vcWio7I4
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_your_supabase_anon_key
 EOF
 
 # Install and run
@@ -97,7 +97,7 @@ Get Supabase connection details:
 ```powershell
 # Windows PowerShell
 $env:PGPASSWORD='your_supabase_db_password'
-psql "postgresql://postgres@db.jsucvnqdjbkydkgwmdrc.supabase.co:5432/postgres" -f backup.sql
+psql "postgresql://postgres@db.your-project-ref.supabase.co:5432/postgres" -f backup.sql
 ```
 
 ---
@@ -123,7 +123,7 @@ psql "postgresql://postgres@db.jsucvnqdjbkydkgwmdrc.supabase.co:5432/postgres" -
 
 | Key | Value |
 |-----|-------|
-| `DATABASE_URL` | `postgresql://postgres:[PASSWORD]@db.jsucvnqdjbkydkgwmdrc.supabase.co:5432/postgres` |
+| `DATABASE_URL` | `postgresql://postgres:[PASSWORD]@db.your-project-ref.supabase.co:5432/postgres` |
 | `JWT_SECRET` | Generate a strong 32+ character secret (use `openssl rand -base64 32` on Mac/Linux or PowerShell) |
 | `JWT_EXPIRE` | `7d` |
 | `NODE_ENV` | `production` |
@@ -162,8 +162,8 @@ https://careconnect-api.onrender.com
 | Name | Value | Scope |
 |------|-------|-------|
 | `VITE_API_URL` | `https://careconnect-api.onrender.com/api` | Production, Preview, Development |
-| `VITE_SUPABASE_URL` | `https://jsucvnqdjbkydkgwmdrc.supabase.co` | Production, Preview, Development |
-| `VITE_SUPABASE_ANON_KEY` | `sb_publishable_T1uC3Fyucu5MAtUADzP4kg_vcWio7I4` | Production, Preview, Development |
+| `VITE_SUPABASE_URL` | `https://your-project-ref.supabase.co` | Production, Preview, Development |
+| `VITE_SUPABASE_ANON_KEY` | `sb_publishable_your_supabase_anon_key` | Production, Preview, Development |
 
 3. Click **Save**
 4. Go to **Deployments** → **Redeploy** (to apply new vars)
@@ -209,7 +209,7 @@ Now that frontend is deployed, update backend CORS:
 ## Troubleshooting
 
 ### Backend won't connect to Supabase
-1. Verify `DATABASE_URL` format: `postgresql://postgres:[PASSWORD]@db.jsucvnqdjbkydkgwmdrc.supabase.co:5432/postgres`
+1. Verify `DATABASE_URL` format: `postgresql://postgres:[PASSWORD]@db.your-project-ref.supabase.co:5432/postgres`
 2. Check password is correct (Supabase Dashboard → Settings → Database)
 3. Ensure Supabase project is active
 4. View Render logs: **Logs** tab

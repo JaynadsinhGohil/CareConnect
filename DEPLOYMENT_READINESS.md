@@ -94,7 +94,7 @@ npm run build
 ```bash
 # Backend .env
 PORT=5000
-DATABASE_URL=postgresql://user:pass@host:5432/careconnect
+DATABASE_URL=postgresql://user:[PASSWORD]@host:5432/careconnect
 JWT_SECRET=your-production-secret-key-change-this
 JWT_EXPIRE=7d
 NODE_ENV=production

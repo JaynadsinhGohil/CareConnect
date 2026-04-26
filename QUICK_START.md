@@ -49,7 +49,7 @@ CREATE DATABASE careconnect;
 ### Step 2: Update Backend Config
 Edit `backend/.env`:
 ```
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/careconnect
+DATABASE_URL=postgresql://postgres:[PASSWORD]@localhost:5432/careconnect
 JWT_SECRET=your_secret_key_here
 ```
 

@@ -37,7 +37,7 @@ Create `.env` file in the `backend` folder:
 
 ```env
 PORT=5000
-DATABASE_URL=postgresql://postgres:database@localhost:5432/careconnect
+DATABASE_URL=postgresql://postgres:[PASSWORD]@localhost:5432/careconnect
 JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
 JWT_EXPIRE=7d
 NODE_ENV=development

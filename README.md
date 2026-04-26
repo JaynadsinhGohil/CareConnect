@@ -89,7 +89,7 @@ Copy `backend/.env.example` to `backend/.env` and configure:
 
 ```env
 # Get DATABASE_URL from: Supabase Dashboard → Settings → Database → Connection String
-DATABASE_URL=postgresql://postgres:[PASSWORD]@db.jsucvnqdjbkydkgwmdrc.supabase.co:5432/postgres
+DATABASE_URL=postgresql://postgres:[PASSWORD]@db.your-project-ref.supabase.co:5432/postgres
 PORT=5000
 JWT_SECRET=your_super_secret_key_min_32_characters
 JWT_EXPIRE=7d
@@ -102,8 +102,8 @@ FRONTEND_URL=http://localhost:8080
 
 ```env
 VITE_API_URL=http://localhost:5000/api
-VITE_SUPABASE_URL=https://jsucvnqdjbkydkgwmdrc.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_T1uC3Fyucu5MAtUADzP4kg_vcWio7I4
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_your_supabase_anon_key
 ```
 
 ### 3. Install Dependencies

@@ -72,6 +72,46 @@ const normalizeFollowUpDate = (value?: string | null) => {
   return parsed.toISOString().slice(0, 10);
 };
 
+const ensureDoctorProfile = async (userId: string) => {
+  let doctor = await doctorModel.findByUserId(userId);
+  if (doctor) {
+    return doctor;
+  }
+
+  try {
+    doctor = await doctorModel.create(userId, 'General Practice');
+  } catch (error: any) {
+    // Another request may create the profile in parallel.
+    if (error?.code === '23505') {
+      doctor = await doctorModel.findByUserId(userId);
+    } else {
+      throw error;
+    }
+  }
+
+  return doctor;
+};
+
+const ensurePatientProfile = async (userId: string) => {
+  let patient = await patientModel.findByUserId(userId);
+  if (patient) {
+    return patient;
+  }
+
+  try {
+    patient = await patientModel.create(userId);
+  } catch (error: any) {
+    // Another request may create the profile in parallel.
+    if (error?.code === '23505') {
+      patient = await patientModel.findByUserId(userId);
+    } else {
+      throw error;
+    }
+  }
+
+  return patient;
+};
+
 export const doctorController = {
   createStaff: async (req: AuthRequest, res: Response) => {
     try {
@@ -149,7 +189,7 @@ export const doctorController = {
 
   getProfile: async (req: AuthRequest, res: Response) => {
     try {
-      const doctor = await doctorModel.findByUserId(req.userId!);
+      const doctor = await ensureDoctorProfile(req.userId!);
       if (!doctor) {
         return res.status(404).json({ error: 'Doctor profile not found' });
       }
@@ -162,7 +202,7 @@ export const doctorController = {
 
   getAppointments: async (req: AuthRequest, res: Response) => {
     try {
-      const doctor = await doctorModel.findByUserId(req.userId!);
+      const doctor = await ensureDoctorProfile(req.userId!);
       if (!doctor) {
         return res.status(404).json({ error: 'Doctor not found' });
       }
@@ -177,7 +217,7 @@ export const doctorController = {
 
   getPatients: async (req: AuthRequest, res: Response) => {
     try {
-      const doctor = await doctorModel.findByUserId(req.userId!);
+      const doctor = await ensureDoctorProfile(req.userId!);
       if (!doctor) {
         return res.status(404).json({ error: 'Doctor not found' });
       }
@@ -253,7 +293,7 @@ export const doctorController = {
 
       let doctor: { id: string } | null = null;
       if (!isAdmin) {
-        doctor = await doctorModel.findByUserId(req.userId!);
+        doctor = await ensureDoctorProfile(req.userId!);
         if (!doctor) {
           return res.status(404).json({ error: 'Doctor not found' });
         }
@@ -326,7 +366,7 @@ export const patientController = {
 
   getProfile: async (req: AuthRequest, res: Response) => {
     try {
-      const patient = await patientModel.findByUserId(req.userId!);
+      const patient = await ensurePatientProfile(req.userId!);
       if (!patient) {
         return res.status(404).json({ error: 'Patient profile not found' });
       }
@@ -339,7 +379,7 @@ export const patientController = {
 
   updateProfile: async (req: AuthRequest, res: Response) => {
     try {
-      const patient = await patientModel.findByUserId(req.userId!);
+      const patient = await ensurePatientProfile(req.userId!);
       if (!patient) {
         return res.status(404).json({ error: 'Patient not found' });
       }
@@ -412,7 +452,7 @@ export const patientController = {
 
   getAppointments: async (req: AuthRequest, res: Response) => {
     try {
-      const patient = await patientModel.findByUserId(req.userId!);
+      const patient = await ensurePatientProfile(req.userId!);
       if (!patient) {
         return res.status(404).json({ error: 'Patient not found' });
       }
@@ -433,7 +473,7 @@ export const patientController = {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
-      const patient = await patientModel.findByUserId(req.userId!);
+      const patient = await ensurePatientProfile(req.userId!);
       if (!patient) {
         return res.status(404).json({ error: 'Patient not found' });
       }
@@ -479,7 +519,7 @@ export const patientController = {
 
   getMedicalRecords: async (req: AuthRequest, res: Response) => {
     try {
-      const patient = await patientModel.findByUserId(req.userId!);
+      const patient = await ensurePatientProfile(req.userId!);
       if (!patient) {
         return res.status(404).json({ error: 'Patient not found' });
       }
@@ -494,7 +534,7 @@ export const patientController = {
 
   getPrescriptions: async (req: AuthRequest, res: Response) => {
     try {
-      const patient = await patientModel.findByUserId(req.userId!);
+      const patient = await ensurePatientProfile(req.userId!);
       if (!patient) {
         return res.status(404).json({ error: 'Patient not found' });
       }
@@ -527,7 +567,7 @@ export const medicalRecordController = {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
-      const doctor = await doctorModel.findByUserId(req.userId!);
+      const doctor = await ensureDoctorProfile(req.userId!);
       if (!doctor) {
         return res.status(404).json({ error: 'Doctor not found' });
       }
@@ -563,7 +603,7 @@ export const medicalRecordController = {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
-      const doctor = await doctorModel.findByUserId(req.userId!);
+      const doctor = await ensureDoctorProfile(req.userId!);
       if (!doctor) {
         return res.status(404).json({ error: 'Doctor not found' });
       }
@@ -608,7 +648,7 @@ export const prescriptionController = {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
-      const doctor = await doctorModel.findByUserId(req.userId!);
+      const doctor = await ensureDoctorProfile(req.userId!);
       if (!doctor) {
         return res.status(404).json({ error: 'Doctor not found' });
       }
@@ -639,7 +679,7 @@ export const prescriptionController = {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
-      const doctor = await doctorModel.findByUserId(req.userId!);
+      const doctor = await ensureDoctorProfile(req.userId!);
       if (!doctor) {
         return res.status(404).json({ error: 'Doctor not found' });
       }
