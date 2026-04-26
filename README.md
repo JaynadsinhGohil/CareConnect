@@ -2,6 +2,8 @@
 
 A modern, full-stack healthcare management system with role-based access control, appointments, prescriptions, medical records, and comprehensive patient management.
 
+**Live demo:** https://care-connect-peach-sigma.vercel.app/
+
 ## ✨ Features
 
 ### 🏥 Core Features
